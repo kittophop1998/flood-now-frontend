@@ -14,7 +14,8 @@ type LatLng = { latitude: number; longitude: number };
 // Matches the largest per-category duplicate radius on the server.
 const PIN_CHECK_RADIUS_M = 150;
 
-// Bottom panel while placing the report pin. Before the location is
+// Bottom panel while placing a pin (a new report, or a point for a saved
+// place / route / SOS — then `title` says what for). Before the location is
 // confirmed it shows the approximate address and any open reports right at
 // the pin, so people can spot an existing report before writing a new one.
 export function LocationPicker({
@@ -25,6 +26,7 @@ export function LocationPicker({
   onCancel,
   onConfirm,
   onOpenReport,
+  title,
 }: {
   ref?: React.Ref<HTMLElement>;
   point: LatLng;
@@ -32,7 +34,9 @@ export function LocationPicker({
   onUseMyLocation: () => void;
   onCancel: () => void;
   onConfirm: () => void;
-  onOpenReport: (report: Report) => void;
+  // Only offered while placing a new report.
+  onOpenReport?: (report: Report) => void;
+  title?: string;
 }) {
   const { t } = useTranslation();
   const { place, status: addressStatus } = useApproximateAddress(point);
@@ -46,7 +50,7 @@ export function LocationPicker({
     >
       <div>
         <h2 id="picker-title" className="text-lg font-semibold">
-          {t("pickTitle")}
+          {title ?? t("pickTitle")}
         </h2>
         <p className="text-sm text-muted-foreground">{t("dragPinHint")}</p>
       </div>
@@ -77,7 +81,7 @@ export function LocationPicker({
           </p>
         )}
         {nearby.status === "ready" && nearby.data.length === 0 && <p className="text-xs text-muted-foreground">{t("noneAtPin")}</p>}
-        {nearby.status === "ready" && nearby.data.length > 0 && (
+        {nearby.status === "ready" && nearby.data.length > 0 && onOpenReport && (
           <>
             <p className="text-xs font-semibold text-amber-800">{t("nearbyAtPin", { n: nearby.data.length })}</p>
             <ul className="flex flex-col gap-1.5">

@@ -19,3 +19,16 @@ export function formatDistance(meters: number, t: TranslateFn): string {
   const km = meters / 1000;
   return t("kilometersValue", { n: km < 10 ? Number(km.toFixed(1)).toString() : Math.round(km).toString() });
 }
+
+// A circle of `radiusM` meters around a point as a GeoJSON ring
+// ([lng, lat] pairs, closed), for drawing announcement areas on the map.
+export function circleRing(center: LatLng, radiusM: number, steps = 48): [number, number][] {
+  const ring: [number, number][] = [];
+  const dLat = radiusM / 111_320;
+  const dLng = radiusM / (111_320 * Math.max(Math.cos((center.latitude * Math.PI) / 180), 0.01));
+  for (let i = 0; i <= steps; i++) {
+    const a = (i / steps) * 2 * Math.PI;
+    ring.push([center.longitude + dLng * Math.cos(a), center.latitude + dLat * Math.sin(a)]);
+  }
+  return ring;
+}

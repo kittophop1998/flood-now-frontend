@@ -2,11 +2,12 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { reportsService } from "@/services/reports-service";
-import { ApiError, isAbortError } from "@/services/api-client";
+import { ApiError, isAbortError, isNetworkError } from "@/services/api-client";
 import { toListQuery, type MapFilters } from "@/lib/map-filters";
+import { readCache, writeCache } from "@/lib/offline-cache";
 import { isOpen } from "@/lib/report-status";
 import { useTranslation } from "@/lib/i18n/locale-context";
-import type { BoundingBox, Report } from "@/types/report";
+import type { AggregateCell, BoundingBox, Report } from "@/types/report";
 
 const DEBOUNCE_MS = 350;
 const POLL_INTERVAL_MS = 60_000;
@@ -14,6 +15,12 @@ const POLL_INTERVAL_MS = 60_000;
 const REGION_MAX_AGE_MS = 30_000;
 // Fetch a margin around the visible area so small pans don't refetch.
 const PAD_RATIO = 0.3;
+// Below this zoom the map shows aggregated flood zones (server-side grid
+// cells + heatmap) instead of individual reports.
+export const AGGREGATE_MAX_ZOOM = 11;
+const CACHE_KEY = "viewport-reports";
+// Enough for the offline copy of one city viewport without filling storage.
+const CACHE_MAX_REPORTS = 400;
 
 export interface Viewport {
   bbox: BoundingBox;
@@ -40,10 +47,15 @@ function contains(outer: BoundingBox, inner: BoundingBox): boolean {
 
 // Loads only the reports inside the current map viewport (never the whole
 // world), refetching as the map moves: debounced, cancelling stale requests,
-// and reusing the last fetched region while it's still fresh.
+// and reusing the last fetched region while it's still fresh. Zoomed out it
+// loads aggregated cells instead. When the network fails, the last fetched
+// reports are shown with the time they were fetched (`staleSince`).
 export function useViewportReports(viewport: Viewport | null, filters: MapFilters) {
   const { t } = useTranslation();
   const [reports, setReports] = useState<Report[]>([]);
+  const [cells, setCells] = useState<AggregateCell[]>([]);
+  const [mode, setMode] = useState<"reports" | "aggregate">("reports");
+  const [staleSince, setStaleSince] = useState<string | null>(null);
   const [status, setStatus] = useState<"idle" | "loading" | "ready" | "error">("idle");
   const [refreshing, setRefreshing] = useState(false);
   const [hasMore, setHasMore] = useState(false);
@@ -65,8 +77,11 @@ export function useViewportReports(viewport: Viewport | null, filters: MapFilter
     async (force: boolean) => {
       const vp = viewportRef.current;
       if (!vp) return;
+      const aggregate = vp.zoom < AGGREGATE_MAX_ZOOM;
+      // Aggregated cells are sized per zoom level, so a new level refetches.
+      const key = aggregate ? `${filterKey}:z${Math.floor(vp.zoom)}` : filterKey;
       const last = lastRegion.current;
-      if (!force && last && last.key === filterKey && Date.now() - last.at < REGION_MAX_AGE_MS && contains(last.bbox, vp.bbox)) {
+      if (!force && last && last.key === key && Date.now() - last.at < REGION_MAX_AGE_MS && contains(last.bbox, vp.bbox)) {
         return;
       }
 
@@ -78,14 +93,38 @@ export function useViewportReports(viewport: Viewport | null, filters: MapFilter
       setRefreshing(true);
       setStatus((s) => (s === "ready" ? s : "loading"));
       try {
-        const res = await reportsService.list({ ...toListQuery(filtersRef.current), bbox: region }, controller.signal);
-        lastRegion.current = { bbox: region, key: filterKey, at: Date.now() };
-        setReports(res.reports);
-        setHasMore(res.has_more);
+        const query = { ...toListQuery(filtersRef.current), bbox: region };
+        if (aggregate) {
+          const res = await reportsService.aggregate({ ...query, zoom: vp.zoom }, controller.signal);
+          setCells(res.cells);
+          setReports([]);
+          setHasMore(false);
+          setMode("aggregate");
+        } else {
+          const res = await reportsService.list(query, controller.signal);
+          setReports(res.reports);
+          setCells([]);
+          setHasMore(res.has_more);
+          setMode("reports");
+          writeCache(CACHE_KEY, res.reports.slice(0, CACHE_MAX_REPORTS));
+        }
+        lastRegion.current = { bbox: region, key, at: Date.now() };
+        setStaleSince(null);
         setStatus("ready");
         setErrorMessage(null);
       } catch (err) {
         if (isAbortError(err)) return;
+        const cached = isNetworkError(err) ? readCache<Report[]>(CACHE_KEY) : null;
+        if (cached) {
+          // Offline: show the last fetched reports, clearly marked as such.
+          setReports(cached.data);
+          setCells([]);
+          setMode("reports");
+          setStaleSince(cached.savedAt);
+          setStatus("ready");
+          setErrorMessage(null);
+          return;
+        }
         setStatus("error");
         setErrorMessage(err instanceof ApiError && err.status !== 0 ? err.message : t("failedLoadReports"));
       } finally {
@@ -121,5 +160,5 @@ export function useViewportReports(viewport: Viewport | null, filters: MapFilter
 
   const reload = useCallback(() => load(true), [load]);
 
-  return { reports, status, refreshing, hasMore, errorMessage, reload, upsertReport };
+  return { reports, cells, mode, staleSince, status, refreshing, hasMore, errorMessage, reload, upsertReport };
 }

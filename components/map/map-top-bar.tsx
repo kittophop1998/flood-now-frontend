@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Clock, Loader2, LocateFixed, MapPin, Search, SlidersHorizontal, TriangleAlert, X, Zap } from "lucide-react";
+import { Clock, Layers, Loader2, LocateFixed, MapPin, Search, SlidersHorizontal, TriangleAlert, X, Zap } from "lucide-react";
 import { usePlaceSearch } from "@/features/reports/use-place-search";
 import { CATEGORY_CHIPS, SEVERE, isSevereOnly, toggleChipTypes, countAdvancedFilters, type MapFilters } from "@/lib/map-filters";
 import { CATEGORY_META } from "@/lib/report-meta";
@@ -23,6 +23,8 @@ export function MapTopBar({
   searchArea,
   canFilterNearMe,
   onNeedLocation,
+  onOpenLayers,
+  layersActive,
 }: {
   filters: MapFilters;
   onFiltersChange: (next: MapFilters) => void;
@@ -31,6 +33,8 @@ export function MapTopBar({
   searchArea: BoundingBox | null;
   canFilterNearMe: boolean;
   onNeedLocation: () => void;
+  onOpenLayers: () => void;
+  layersActive: number;
 }) {
   const { t } = useTranslation();
   const [query, setQuery] = useState("");
@@ -117,6 +121,19 @@ export function MapTopBar({
           {advancedCount > 0 && (
             <span className="absolute -top-1 -right-1 flex size-5 items-center justify-center rounded-full bg-primary text-[11px] font-semibold text-primary-foreground">
               {advancedCount}
+            </span>
+          )}
+        </button>
+        <button
+          type="button"
+          onClick={onOpenLayers}
+          aria-label={layersActive > 0 ? `${t("layersTitle")} (${layersActive})` : t("layersTitle")}
+          className="relative flex size-12 shrink-0 items-center justify-center rounded-2xl border bg-background shadow-md hover:bg-muted focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+        >
+          <Layers className="size-5" aria-hidden />
+          {layersActive > 0 && (
+            <span className="absolute -top-1 -right-1 flex size-5 items-center justify-center rounded-full bg-indigo-700 text-[11px] font-semibold text-white">
+              {layersActive}
             </span>
           )}
         </button>

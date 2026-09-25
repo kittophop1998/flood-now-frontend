@@ -8,6 +8,7 @@ import {
   CircleCheck,
   CircleX,
   Clock,
+  Flag,
   Loader2,
   MapPin,
   Navigation,
@@ -19,6 +20,8 @@ import {
 import { Button } from "@/components/ui/button";
 import { BottomSheet, type SheetSnap } from "@/components/ui/bottom-sheet";
 import { ReportSummary } from "@/components/report/report-card";
+import { ReportProblemDialog } from "@/components/report/report-problem-dialog";
+import { CommunityBadge } from "@/components/community/badges";
 import { PassabilityGrid } from "@/components/report/passability";
 import { DepthGauge, SeverityBadge } from "@/components/report/report-badges";
 import { useConfirmReport } from "@/features/reports/use-confirm-report";
@@ -28,6 +31,7 @@ import { getConfirmation, isInCooldown, setConfirmation, type DeviceConfirmation
 import { directionsUrl, reportShareUrl, shareLink } from "@/lib/directions";
 import { distanceMeters, formatDistance } from "@/lib/distance";
 import { formatClockTime, formatDuration, formatFreshness } from "@/lib/freshness";
+import { reportShareText } from "@/lib/share";
 import { imageKitUrl } from "@/lib/imagekit";
 import { CATEGORY_META, WATER_DEPTH_META, hasKnownPassability, reportTitle, waterDepthLabel } from "@/lib/report-meta";
 import { currentStatus, isOpen } from "@/lib/report-status";
@@ -46,6 +50,7 @@ export function ReportDetailSheet({
   following,
   onToggleFollow,
   onVisibleHeightChange,
+  onQueueVote,
 }: {
   report: Report;
   userLocation: LatLng | null;
@@ -54,6 +59,8 @@ export function ReportDetailSheet({
   following: boolean;
   onToggleFollow: () => Promise<boolean>;
   onVisibleHeightChange?: (px: number) => void;
+  // Offline: the vote is queued and sent when the network returns.
+  onQueueVote: (status: ConfirmationStatus) => void;
 }) {
   const { t, locale } = useTranslation();
   const now = useNow();
@@ -63,6 +70,8 @@ export function ReportDetailSheet({
   const [justVoted, setJustVoted] = useState<ConfirmationStatus | null>(null);
   const [showCoords, setShowCoords] = useState(false);
   const [followPending, setFollowPending] = useState(false);
+  const [problemOpen, setProblemOpen] = useState(false);
+  const [queuedVote, setQueuedVote] = useState<ConfirmationStatus | null>(null);
   const { place } = useApproximateAddress(report);
 
   const status = currentStatus(report, now);
@@ -72,19 +81,30 @@ export function ReportDetailSheet({
   const distance = userLocation ? distanceMeters(userLocation, report) : null;
   const locationText = place?.name ?? (distance != null ? t("locationDistance", { d: formatDistance(distance, t) }) : null);
 
+  function queueVote(next: ConfirmationStatus) {
+    onQueueVote(next);
+    setDeviceVote(setConfirmation(report.id, next));
+    setQueuedVote(next);
+    setJustVoted(null);
+  }
+
   async function handleVote(next: ConfirmationStatus) {
     if (isInCooldown(deviceVote, next)) return;
     setJustVoted(null);
+    if (!navigator.onLine) return queueVote(next);
     const updated = await confirm(report.id, next);
     if (updated) {
       setDeviceVote(setConfirmation(report.id, next));
       setJustVoted(next);
+      setQueuedVote(null);
       onConfirmed(updated);
+    } else if (!navigator.onLine) {
+      queueVote(next);
     }
   }
 
   async function handleShare() {
-    const result = await shareLink(reportShareUrl(report.id), reportTitle(t, report));
+    const result = await shareLink(reportShareUrl(report.id), reportTitle(t, report), reportShareText(t, report, now));
     if (result === "copied") toast.success(t("shareCopied"));
     if (result === "failed") toast.error(t("shareFailed"));
   }
@@ -148,6 +168,7 @@ export function ReportDetailSheet({
       onVisibleHeightChange={onVisibleHeightChange}
     >
       <div className="flex flex-col gap-5 border-t px-4 pt-4">
+        <CommunityBadge className="self-start" />
         <StatusNotice report={report} status={status} now={now} />
 
         {imageUrl && (
@@ -191,7 +212,9 @@ export function ReportDetailSheet({
             {t("confirmationsCount", { n: report.still_active_count })} · {t("clearedCount", { n: report.cleared_count })}
           </p>
           <div aria-live="polite" className="text-sm empty:hidden">
-            {error ? (
+            {queuedVote ? (
+              <p className="text-amber-800">{t("voteQueued")}</p>
+            ) : error ? (
               <p className="text-destructive">{error}</p>
             ) : (
               justVoted && (
@@ -307,6 +330,12 @@ export function ReportDetailSheet({
           </a>
         </div>
         <p className="-mt-3 text-center text-[11px] text-muted-foreground">{t("routeDisclaimer")}</p>
+
+        <Button variant="ghost" className="h-11 self-center rounded-xl text-muted-foreground" onClick={() => setProblemOpen(true)}>
+          <Flag aria-hidden />
+          {t("problemOpen")}
+        </Button>
+        <ReportProblemDialog reportId={report.id} open={problemOpen} onOpenChange={setProblemOpen} />
       </div>
     </BottomSheet>
   );

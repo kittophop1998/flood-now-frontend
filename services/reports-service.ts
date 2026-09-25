@@ -1,11 +1,13 @@
 import { apiClient, toQuery } from "@/services/api-client";
 import type {
+  AggregateResult,
   BoundingBox,
   ConfirmReportInput,
   CreateReportInput,
   ListReportsQuery,
   ListReportsResult,
   NearbyQuery,
+  ProblemReportInput,
   Report,
   ReportType,
 } from "@/types/report";
@@ -25,6 +27,19 @@ export const reportsService = {
         statuses: query.statuses,
         updated_since: query.updatedSince,
         limit: query.limit,
+      })}`,
+      signal,
+    ),
+
+  // Zoomed-out map: open reports grouped into grid cells sized for `zoom`.
+  aggregate: (query: Omit<ListReportsQuery, "limit" | "updatedSince"> & { bbox: BoundingBox; zoom: number }, signal?: AbortSignal) =>
+    apiClient.get<AggregateResult>(
+      `/api/v1/reports/aggregate${toQuery({
+        ...bboxParams(query.bbox),
+        zoom: Math.max(0, Math.min(16, Math.floor(query.zoom))),
+        types: query.types,
+        severities: query.severities,
+        statuses: query.statuses,
       })}`,
       signal,
     ),
@@ -57,4 +72,10 @@ export const reportsService = {
 
   confirm: (id: string, input: ConfirmReportInput) =>
     apiClient.post<Report>(`/api/v1/reports/${id}/confirmations`, input),
+
+  // "Report a problem" with an incident (moderation).
+  reportProblem: (id: string, input: ProblemReportInput) =>
+    apiClient.post<{ id: string; status: string }>(`/api/v1/reports/${id}/problems`, input),
 };
+
+export { bboxParams };

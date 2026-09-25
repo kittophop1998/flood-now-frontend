@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono, IBM_Plex_Sans_Thai } from "next/font/google";
 import { Toaster } from "@/components/ui/sonner";
+import { ServiceWorkerRegistration } from "@/components/service-worker";
 import { LocaleProvider } from "@/lib/i18n/locale-context";
 import "./globals.css";
 
@@ -48,6 +49,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
         <LocaleProvider>
           {children}
           <Toaster position="top-center" offset={{ top: "calc(env(safe-area-inset-top) + 12px)" }} />
+          <ServiceWorkerRegistration />
         </LocaleProvider>
       </body>
     </html>

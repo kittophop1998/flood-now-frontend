@@ -6,6 +6,10 @@ const nextConfig: NextConfig = {
   agentRules: false,
   // Minimal, self-contained runtime output for the Docker image.
   output: "standalone",
+  // The service worker must always be revalidated so fixes roll out.
+  async headers() {
+    return [{ source: "/sw.js", headers: [{ key: "Cache-Control", value: "no-cache, no-store, must-revalidate" }] }];
+  },
 };
 
 export default nextConfig;

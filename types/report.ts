@@ -80,6 +80,8 @@ export interface CreateReportInput {
   has_child?: boolean | null;
   has_elderly?: boolean | null;
   contact_phone?: string | null;
+  // Idempotency key for the offline queue: re-sending returns the original.
+  client_id?: string | null;
 }
 
 export interface ConfirmReportInput {
@@ -145,6 +147,40 @@ export interface AppNotification {
   created_at: string;
   follow_id: string;
   report: Report;
+}
+
+// Zoomed-out map: open reports grouped into grid cells (GET /reports/aggregate).
+export interface AggregateCell {
+  latitude: number;
+  longitude: number;
+  count: number;
+  severe_count: number;
+  max_severity: Severity;
+  latest_update_at: string;
+}
+
+export interface AggregateResult {
+  cells: AggregateCell[];
+  cell_size_deg: number;
+  total: number;
+}
+
+export const PROBLEM_REASONS = [
+  "false_information",
+  "wrong_location",
+  "duplicate",
+  "outdated",
+  "inappropriate_image",
+  "spam",
+  "privacy",
+  "other",
+] as const;
+export type ProblemReason = (typeof PROBLEM_REASONS)[number];
+
+export interface ProblemReportInput {
+  device_id: string;
+  reason: ProblemReason;
+  details?: string | null;
 }
 
 export interface Place {

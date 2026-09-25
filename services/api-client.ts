@@ -43,14 +43,32 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   return res.json() as Promise<T>;
 }
 
+function createClient(headers?: Record<string, string>) {
+  const send = <T>(method: string, path: string, body?: unknown, signal?: AbortSignal) =>
+    request<T>(path, { method, signal, headers, body: body !== undefined ? JSON.stringify(body) : undefined });
+  return {
+    get: <T>(path: string, signal?: AbortSignal) => send<T>("GET", path, undefined, signal),
+    post: <T>(path: string, body?: unknown, signal?: AbortSignal) => send<T>("POST", path, body, signal),
+    put: <T>(path: string, body?: unknown) => send<T>("PUT", path, body),
+    patch: <T>(path: string, body?: unknown) => send<T>("PATCH", path, body),
+    delete: <T>(path: string) => send<T>("DELETE", path),
+  };
+}
+
 // Single centralized API client — every service call goes through this.
 // Components must not call fetch() directly. See CLAUDE.md.
-export const apiClient = {
-  get: <T>(path: string, signal?: AbortSignal) => request<T>(path, { method: "GET", signal }),
-  post: <T>(path: string, body?: unknown) =>
-    request<T>(path, { method: "POST", body: body !== undefined ? JSON.stringify(body) : undefined }),
-  delete: <T>(path: string) => request<T>(path, { method: "DELETE" }),
-};
+export const apiClient = createClient();
+
+// Same client carrying the operator token, for /api/v1/admin/* only.
+export function adminClient(token: string) {
+  return createClient({ Authorization: `Bearer ${token}` });
+}
+
+// True when the request never reached the server (offline, DNS, CORS…),
+// as opposed to the server answering with an error.
+export function isNetworkError(err: unknown): boolean {
+  return err instanceof ApiError && err.status === 0;
+}
 
 export function isAbortError(err: unknown): boolean {
   return err instanceof DOMException && err.name === "AbortError";
