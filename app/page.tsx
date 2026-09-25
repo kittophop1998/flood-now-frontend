@@ -3,7 +3,7 @@
 import dynamic from "next/dynamic";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
-import { CircleAlert, CloudUpload, Layers, LocateFixed, MapPinOff, SearchX, Siren, WifiOff, ZoomIn } from "lucide-react";
+import { CircleAlert, CloudUpload, Layers, LocateFixed, MapPinOff, RefreshCw, SearchX, Siren, WifiOff, ZoomIn } from "lucide-react";
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle } from "@/components/ui/drawer";
 import { BottomNav, type AppTab } from "@/components/bottom-nav";
 import { InstallPrompt } from "@/components/install-prompt";
@@ -427,6 +427,15 @@ export default function HomePage() {
 
         {onMap && !picking && (
           <>
+            <button
+              type="button"
+              onClick={reload}
+              aria-label={t("refreshMapButton")}
+              disabled={refreshing}
+              className="absolute right-3 bottom-[calc(var(--map-bottom-inset)+4.5rem)] z-10 flex size-12 items-center justify-center rounded-2xl border bg-background text-primary shadow-lg transition-[bottom] duration-300 hover:bg-muted focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring disabled:opacity-60 sm:bottom-[9.25rem]"
+            >
+              <RefreshCw className={refreshing ? "size-5 animate-spin" : "size-5"} />
+            </button>
             <button
               type="button"
               onClick={() => goToMyLocation(Math.max(viewport?.zoom ?? 14, 15))}

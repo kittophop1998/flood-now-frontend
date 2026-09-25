@@ -63,6 +63,7 @@ export const en = {
   noReportsFiltered: "No reports match your filters",
   clearFilters: "Clear filters",
   myLocationButton: "Go to my location",
+  refreshMapButton: "Refresh map",
   mapLabel: "Map of reports",
   reportAriaLabel: "{title}, {severity}",
   clusterAriaLabel: "{n} reports here. Zoom in",

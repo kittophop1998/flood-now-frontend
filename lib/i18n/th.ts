@@ -62,6 +62,7 @@ export const th: Record<TranslationKey, string> = {
   noReportsFiltered: "ไม่มีรายงานตรงกับตัวกรอง",
   clearFilters: "ล้างตัวกรอง",
   myLocationButton: "ไปยังตำแหน่งของฉัน",
+  refreshMapButton: "รีเฟรชแผนที่",
   mapLabel: "แผนที่รายงาน",
   reportAriaLabel: "{title}, {severity}",
   clusterAriaLabel: "{n} รายงานในบริเวณนี้ ซูมเข้า",
