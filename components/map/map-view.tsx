@@ -48,11 +48,13 @@ export function MapView({
   });
 
   // The map only initializes viewState once; when the center prop later
-  // changes (e.g. geolocation resolves after the default fallback render),
-  // fly to it explicitly rather than silently ignoring the update.
+  // changes (e.g. geolocation resolves after the default fallback render, or
+  // "My location" is pressed), fly to it explicitly rather than silently
+  // ignoring the update. Compared by reference so passing a fresh object
+  // re-centers even when the coordinates are unchanged but the user panned away.
   const prevCenterRef = useRef(center);
   useEffect(() => {
-    if (center.latitude !== prevCenterRef.current.latitude || center.longitude !== prevCenterRef.current.longitude) {
+    if (center !== prevCenterRef.current) {
       mapRef.current?.flyTo({ center: [center.longitude, center.latitude], zoom: 14, duration: 800 });
       prevCenterRef.current = center;
     }

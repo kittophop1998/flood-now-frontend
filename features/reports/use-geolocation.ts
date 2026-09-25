@@ -19,11 +19,32 @@ export function useGeolocation(): GeolocationState {
       return;
     }
 
+    let cancelled = false;
+    const onSuccess = (pos: GeolocationPosition) => {
+      if (!cancelled) setState({ status: "granted", latitude: pos.coords.latitude, longitude: pos.coords.longitude });
+    };
+    const onFinalError = (err: GeolocationPositionError) => {
+      if (!cancelled) setState({ status: err.code === err.PERMISSION_DENIED ? "denied" : "unavailable" });
+    };
+
+    // A high-accuracy (GPS) fix often times out indoors or on desktops with no
+    // GPS; fall back to a coarse network/Wi-Fi fix instead of giving up.
     navigator.geolocation.getCurrentPosition(
-      (pos) => setState({ status: "granted", latitude: pos.coords.latitude, longitude: pos.coords.longitude }),
-      (err) => setState({ status: err.code === err.PERMISSION_DENIED ? "denied" : "unavailable" }),
-      { enableHighAccuracy: true, timeout: 8000, maximumAge: 60_000 },
+      onSuccess,
+      (err) => {
+        if (err.code === err.PERMISSION_DENIED) return onFinalError(err);
+        navigator.geolocation.getCurrentPosition(onSuccess, onFinalError, {
+          enableHighAccuracy: false,
+          timeout: 15_000,
+          maximumAge: 5 * 60_000,
+        });
+      },
+      { enableHighAccuracy: true, timeout: 10_000, maximumAge: 60_000 },
     );
+
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   return state;

@@ -41,6 +41,10 @@ export default function HomePage() {
     return geo.status === "granted" ? { latitude: geo.latitude, longitude: geo.longitude } : DEFAULT_CENTER;
   }, [geo]);
 
+  // Explicit re-center request (e.g. "My location"); a fresh object each time
+  // so MapView flies there even if the coordinates didn't change.
+  const [recenterTarget, setRecenterTarget] = useState<{ latitude: number; longitude: number } | null>(null);
+
   const [mode, setMode] = useState<Mode>({ kind: "browse" });
   const mapCenterRef = useRef(initialCenter);
   // Closing the detail modal is two-phase: hide the dialog first, then leave
@@ -63,7 +67,10 @@ export default function HomePage() {
 
   function useMyLocation() {
     if (geo.status === "granted") {
+      // The pick pin is the map center, so the map itself has to move;
+      // updating mode alone left the pin where it was.
       mapCenterRef.current = { latitude: geo.latitude, longitude: geo.longitude };
+      setRecenterTarget({ latitude: geo.latitude, longitude: geo.longitude });
       setMode({ kind: "picking", latitude: geo.latitude, longitude: geo.longitude });
     }
   }
@@ -108,7 +115,7 @@ export default function HomePage() {
   return (
     <main className="relative h-dvh w-full overflow-hidden">
       <MapView
-        center={initialCenter}
+        center={recenterTarget ?? initialCenter}
         reports={reports}
         onSelectReport={(id) => setMode({ kind: "detail", reportId: id })}
         selectedReportId={mode.kind === "detail" ? mode.reportId : null}
