@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 
 export type GeolocationState =
   | { status: "loading" }
@@ -10,42 +10,58 @@ export type GeolocationState =
 // Bangkok — a reasonable default center when location isn't available.
 export const DEFAULT_CENTER = { latitude: 13.7563, longitude: 100.5018 };
 
-export function useGeolocation(): GeolocationState {
+function requestPosition(onDone: (state: GeolocationState) => void) {
+  if (typeof navigator === "undefined" || !navigator.geolocation) {
+    onDone({ status: "unavailable" });
+    return;
+  }
+  const onSuccess = (pos: GeolocationPosition) =>
+    onDone({ status: "granted", latitude: pos.coords.latitude, longitude: pos.coords.longitude });
+  const onFinalError = (err: GeolocationPositionError) =>
+    onDone({ status: err.code === err.PERMISSION_DENIED ? "denied" : "unavailable" });
+
+  // A high-accuracy (GPS) fix often times out indoors or on desktops with no
+  // GPS; fall back to a coarse network/Wi-Fi fix instead of giving up.
+  navigator.geolocation.getCurrentPosition(
+    onSuccess,
+    (err) => {
+      if (err.code === err.PERMISSION_DENIED) return onFinalError(err);
+      navigator.geolocation.getCurrentPosition(onSuccess, onFinalError, {
+        enableHighAccuracy: false,
+        timeout: 15_000,
+        maximumAge: 5 * 60_000,
+      });
+    },
+    { enableHighAccuracy: true, timeout: 10_000, maximumAge: 60_000 },
+  );
+}
+
+// Current device position plus `locate()` to ask again (e.g. "use my
+// location" after GPS was unavailable). It resolves with the new state so the
+// caller can act on it immediately.
+export function useGeolocation() {
   const [state, setState] = useState<GeolocationState>({ status: "loading" });
 
   useEffect(() => {
-    if (typeof navigator === "undefined" || !navigator.geolocation) {
-      setState({ status: "unavailable" });
-      return;
-    }
-
     let cancelled = false;
-    const onSuccess = (pos: GeolocationPosition) => {
-      if (!cancelled) setState({ status: "granted", latitude: pos.coords.latitude, longitude: pos.coords.longitude });
-    };
-    const onFinalError = (err: GeolocationPositionError) => {
-      if (!cancelled) setState({ status: err.code === err.PERMISSION_DENIED ? "denied" : "unavailable" });
-    };
-
-    // A high-accuracy (GPS) fix often times out indoors or on desktops with no
-    // GPS; fall back to a coarse network/Wi-Fi fix instead of giving up.
-    navigator.geolocation.getCurrentPosition(
-      onSuccess,
-      (err) => {
-        if (err.code === err.PERMISSION_DENIED) return onFinalError(err);
-        navigator.geolocation.getCurrentPosition(onSuccess, onFinalError, {
-          enableHighAccuracy: false,
-          timeout: 15_000,
-          maximumAge: 5 * 60_000,
-        });
-      },
-      { enableHighAccuracy: true, timeout: 10_000, maximumAge: 60_000 },
-    );
-
+    requestPosition((next) => {
+      if (!cancelled) setState(next);
+    });
     return () => {
       cancelled = true;
     };
   }, []);
 
-  return state;
+  const locate = useCallback(
+    () =>
+      new Promise<GeolocationState>((resolve) => {
+        requestPosition((next) => {
+          setState(next);
+          resolve(next);
+        });
+      }),
+    [],
+  );
+
+  return { geo: state, locate };
 }

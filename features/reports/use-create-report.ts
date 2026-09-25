@@ -2,29 +2,24 @@
 
 import { useState } from "react";
 import { reportsService } from "@/services/reports-service";
-import { uploadReportImage } from "@/services/uploads-service";
-import { compressReportImage } from "@/lib/image-compression";
 import { ApiError } from "@/services/api-client";
 import { useTranslation } from "@/lib/i18n/locale-context";
 import type { CreateReportInput, Report } from "@/types/report";
 
+// Submits a report whose photo (if any) was already uploaded by
+// useImageUpload, so a failed submit can be retried without re-uploading.
 export function useCreateReport() {
   const { t } = useTranslation();
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  async function submit(input: Omit<CreateReportInput, "image_key">, imageFile: File | null): Promise<Report | null> {
+  async function submit(input: CreateReportInput): Promise<Report | null> {
     setSubmitting(true);
     setError(null);
     try {
-      let imageKey: string | null = null;
-      if (imageFile) {
-        const compressed = await compressReportImage(imageFile);
-        imageKey = await uploadReportImage(compressed);
-      }
-      return await reportsService.create({ ...input, image_key: imageKey });
+      return await reportsService.create(input);
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : t("failedCreateReport"));
+      setError(err instanceof ApiError && err.status !== 0 ? err.message : t("failedCreateReport"));
       return null;
     } finally {
       setSubmitting(false);

@@ -26,7 +26,7 @@ export function LocaleToggle({ className }: { className?: string }) {
           aria-pressed={locale === option.locale}
           onClick={() => setLocale(option.locale)}
           className={cn(
-            "px-3 py-2 transition-colors",
+            "min-h-11 min-w-12 px-3 transition-colors focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring",
             locale === option.locale ? "bg-primary text-primary-foreground" : "text-muted-foreground",
           )}
         >

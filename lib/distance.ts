@@ -15,5 +15,7 @@ export function distanceMeters(a: LatLng, b: LatLng): number {
 
 export function formatDistance(meters: number, t: TranslateFn): string {
   if (meters < 1000) return t("metersValue", { n: Math.max(50, Math.round(meters / 50) * 50) });
-  return t("kilometersValue", { n: (meters / 1000).toFixed(meters < 10_000 ? 1 : 0) });
+  // "5 km" rather than "5.0 km"; one decimal only when it carries information.
+  const km = meters / 1000;
+  return t("kilometersValue", { n: km < 10 ? Number(km.toFixed(1)).toString() : Math.round(km).toString() });
 }

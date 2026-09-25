@@ -1,11 +1,11 @@
 {
   "name": "FloodNow",
   "short_name": "FloodNow",
-  "description": "Community flood and road-condition reports.",
+  "description": "Community flood and road-condition reports — see what's passable right now.",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#ffffff",
-  "theme_color": "#0369a1",
+  "theme_color": "#1e3a8a",
   "icons": [
     { "src": "/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }
   ]

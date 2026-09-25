@@ -1,85 +1,97 @@
 "use client";
 
-import { useEffect, useMemo, useRef } from "react";
-import { Camera, X } from "lucide-react";
+import { useRef } from "react";
+import { Camera, CircleAlert, CircleCheck, Loader2, RotateCw, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { validateImageFile } from "@/lib/report-schema";
+import { ACCEPTED_IMAGE_TYPES } from "@/lib/report-schema";
 import { useTranslation } from "@/lib/i18n/locale-context";
+import type { ImageUploadState } from "@/features/reports/use-image-upload";
 
-export function ImagePicker({ file, onChange, error, onError }: {
-  file: File | null;
-  onChange: (file: File | null) => void;
-  error: string | null;
-  onError: (message: string | null) => void;
+export function ImagePicker({
+  state,
+  onSelect,
+  onRetry,
+  onRemove,
+}: {
+  state: ImageUploadState;
+  onSelect: (file: File) => void;
+  onRetry: () => void;
+  onRemove: () => void;
 }) {
   const { t } = useTranslation();
   const inputRef = useRef<HTMLInputElement>(null);
-  // Derived directly from `file` rather than mirrored into state — the
-  // effect below only owns cleanup (revoking the previous object URL).
-  const previewUrl = useMemo(() => (file ? URL.createObjectURL(file) : null), [file]);
-
-  useEffect(() => {
-    return () => {
-      if (previewUrl) URL.revokeObjectURL(previewUrl);
-    };
-  }, [previewUrl]);
 
   function handleSelect(e: React.ChangeEvent<HTMLInputElement>) {
-    const selected = e.target.files?.[0] ?? null;
-    if (!selected) return;
-
-    const validationError = validateImageFile(selected, t);
-    if (validationError) {
-      onError(validationError);
-      onChange(null);
-      return;
-    }
-    onError(null);
-    onChange(selected);
+    const selected = e.target.files?.[0];
+    e.target.value = "";
+    if (selected) onSelect(selected);
   }
 
+  const hasPhoto = state.status === "uploading" || state.status === "uploaded" || state.status === "failed";
+
   return (
-    <div>
+    <div className="flex flex-col gap-2">
       <input
         ref={inputRef}
         type="file"
-        accept="image/jpeg,image/png,image/webp"
-        capture="environment"
+        accept={ACCEPTED_IMAGE_TYPES.join(",")}
         className="hidden"
         onChange={handleSelect}
+        aria-hidden
+        tabIndex={-1}
       />
 
-      {previewUrl ? (
-        <div className="relative">
+      {hasPhoto ? (
+        <div className="flex items-center gap-3 rounded-xl border p-2">
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={previewUrl} alt="Selected report photo" className="h-40 w-full rounded-lg object-cover" />
-          <Button
-            type="button"
-            variant="secondary"
-            size="icon"
-            className="absolute right-2 top-2 size-8 rounded-full shadow"
-            onClick={() => {
-              onChange(null);
-              onError(null);
-              if (inputRef.current) inputRef.current.value = "";
-            }}
-            aria-label={t("removePhoto")}
-          >
-            <X className="size-4" />
+          <img src={state.previewUrl} alt="" className="size-20 shrink-0 rounded-lg bg-muted object-cover" />
+          <div className="flex min-w-0 flex-1 flex-col gap-1.5" aria-live="polite">
+            {state.status === "uploading" && (
+              <span className="flex items-center gap-1.5 text-sm text-muted-foreground">
+                <Loader2 className="size-4 animate-spin" aria-hidden />
+                {t("photoUploading")}
+              </span>
+            )}
+            {state.status === "uploaded" && (
+              <span className="flex items-center gap-1.5 text-sm font-medium text-teal-700">
+                <CircleCheck className="size-4" aria-hidden />
+                {t("photoUploaded")}
+              </span>
+            )}
+            {state.status === "failed" && (
+              <>
+                <span className="flex items-center gap-1.5 text-sm font-medium text-destructive">
+                  <CircleAlert className="size-4" aria-hidden />
+                  {t("photoFailed")}
+                </span>
+                <Button type="button" variant="outline" className="h-11 self-start rounded-lg" onClick={onRetry}>
+                  <RotateCw aria-hidden />
+                  {t("retryUpload")}
+                </Button>
+              </>
+            )}
+          </div>
+          <Button type="button" variant="ghost" size="icon" className="size-11 shrink-0 rounded-full" onClick={onRemove} aria-label={t("removePhoto")}>
+            <X className="size-5" />
           </Button>
         </div>
       ) : (
         <button
           type="button"
           onClick={() => inputRef.current?.click()}
-          className="flex h-24 w-full flex-col items-center justify-center gap-1.5 rounded-lg border-2 border-dashed border-border text-muted-foreground transition-colors hover:border-primary hover:text-primary"
+          className="flex min-h-20 w-full flex-col items-center justify-center gap-1 rounded-xl border-2 border-dashed text-muted-foreground transition-colors hover:border-primary hover:text-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
         >
           <Camera className="size-5" aria-hidden />
           <span className="text-sm font-medium">{t("addPhoto")}</span>
         </button>
       )}
 
-      {error && <p className="mt-1.5 text-sm text-destructive">{error}</p>}
+      {state.status === "invalid" && (
+        <p role="alert" className="text-sm text-destructive">
+          {state.message}
+        </p>
+      )}
+      <p className="text-xs text-muted-foreground">{t("photoHint")}</p>
     </div>
   );
 }

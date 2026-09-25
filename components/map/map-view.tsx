@@ -1,12 +1,17 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
-import Map, { Marker, NavigationControl, type MapRef } from "react-map-gl/maplibre";
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import Map, { AttributionControl, Marker, NavigationControl, type MapRef } from "react-map-gl/maplibre";
 import { setWorkerUrl } from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
-import { ReportMarker } from "@/components/map/report-marker";
+import { ClusterMarker, ReportMarker } from "@/components/map/report-marker";
 import { LocationDot } from "@/components/map/location-dot";
 import { CenterPin } from "@/components/map/center-pin";
+import { clusterPoints, CLUSTER_MAX_ZOOM } from "@/lib/cluster";
+import { severityRank } from "@/lib/report-meta";
+import { useNow } from "@/features/common/use-now";
+import { useTranslation } from "@/lib/i18n/locale-context";
+import type { Viewport } from "@/features/reports/use-viewport-reports";
 import type { Report } from "@/types/report";
 
 const OPENFREEMAP_STYLE = "https://tiles.openfreemap.org/styles/liberty";
@@ -17,97 +22,174 @@ const OPENFREEMAP_STYLE = "https://tiles.openfreemap.org/styles/liberty";
 // instead (kept in sync with the maplibre-gl version in package.json).
 setWorkerUrl("/maplibre-gl-worker.js");
 
-export interface MapViewProps {
-  center: { latitude: number; longitude: number };
-  reports: Report[];
-  onSelectReport: (id: string) => void;
-  selectedReportId?: string | null;
-  userLocation?: { latitude: number; longitude: number } | null;
-  pickMode?: boolean;
-  onPickLocationChange?: (latitude: number, longitude: number) => void;
-  // Fired on every moveend regardless of pickMode, so callers can track the
-  // current center (e.g. to seed pick mode) without reading it during render.
-  onCenterChange?: (latitude: number, longitude: number) => void;
+type LatLng = { latitude: number; longitude: number };
+
+// A request to move the camera; pass a fresh object to fly again even to the
+// same place.
+export interface MapFocus extends LatLng {
+  zoom?: number;
 }
 
-export function MapView({
-  center,
+export interface MapViewProps {
+  initialCenter: LatLng;
+  focus: MapFocus | null;
+  reports: Report[];
+  selectedReportId: string | null;
+  onSelectReport: (report: Report) => void;
+  onMapClick?: () => void;
+  userLocation: LatLng | null;
+  pickMode: boolean;
+  onViewportChange: (viewport: Viewport) => void;
+  // Height (px) of the panel/sheet covering the bottom of the map. It becomes
+  // camera padding so the pick pin and focused reports stay in view above it.
+  bottomInset: number;
+}
+
+// The map is uncontrolled (MapLibre owns the camera) so panning doesn't
+// re-render React; markers only re-cluster when a move ends.
+export const MapView = memo(function MapView({
+  initialCenter,
+  focus,
   reports,
-  onSelectReport,
   selectedReportId,
+  onSelectReport,
+  onMapClick,
   userLocation,
   pickMode,
-  onPickLocationChange,
-  onCenterChange,
+  onViewportChange,
+  bottomInset,
 }: MapViewProps) {
+  const { t } = useTranslation();
   const mapRef = useRef<MapRef | null>(null);
-  const [viewState, setViewState] = useState({
-    latitude: center.latitude,
-    longitude: center.longitude,
-    zoom: 14,
-  });
+  const [zoom, setZoom] = useState(14);
+  const now = useNow(60_000);
 
-  // The map only initializes viewState once; when the center prop later
-  // changes (e.g. geolocation resolves after the default fallback render, or
-  // "My location" is pressed), fly to it explicitly rather than silently
-  // ignoring the update. Compared by reference so passing a fresh object
-  // re-centers even when the coordinates are unchanged but the user panned away.
-  const prevCenterRef = useRef(center);
+  // Cap the padding so a fully expanded sheet doesn't squeeze the camera
+  // center into a sliver at the top.
+  const [containerH, setContainerH] = useState(0);
+  const padBottom = Math.round(Math.min(bottomInset, containerH * 0.6));
   useEffect(() => {
-    if (center !== prevCenterRef.current) {
-      mapRef.current?.flyTo({ center: [center.longitude, center.latitude], zoom: 14, duration: 800 });
-      prevCenterRef.current = center;
-    }
-  }, [center]);
+    mapRef.current?.easeTo({ padding: { top: 0, left: 0, right: 0, bottom: padBottom }, duration: 300 });
+  }, [padBottom]);
 
-  const handleMoveEnd = useCallback(() => {
-    if (!mapRef.current) return;
-    const c = mapRef.current.getCenter();
-    if (pickMode) onPickLocationChange?.(c.lat, c.lng);
-    onCenterChange?.(c.lat, c.lng);
-  }, [pickMode, onPickLocationChange, onCenterChange]);
+  useEffect(() => {
+    if (focus) {
+      mapRef.current?.flyTo({
+        center: [focus.longitude, focus.latitude],
+        zoom: focus.zoom ?? Math.max(mapRef.current.getZoom(), 15),
+        duration: 800,
+      });
+    }
+  }, [focus]);
+
+  const emitViewport = useCallback(() => {
+    const map = mapRef.current;
+    if (!map) return;
+    const b = map.getBounds();
+    const c = map.getCenter();
+    setZoom(map.getZoom());
+    setContainerH(map.getContainer().clientHeight);
+    onViewportChange({
+      bbox: { minLat: b.getSouth(), maxLat: b.getNorth(), minLng: b.getWest(), maxLng: b.getEast() },
+      zoom: map.getZoom(),
+      center: { latitude: c.lat, longitude: c.lng },
+    });
+  }, [onViewportChange]);
+
+  // The selected report is never folded into a cluster, so it stays visible
+  // above its detail sheet.
+  const clusters = useMemo(() => {
+    const selected = reports.find((r) => r.id === selectedReportId);
+    const rest = clusterPoints(
+      reports.filter((r) => r !== selected),
+      zoom,
+    );
+    return selected ? [...rest, { kind: "point" as const, key: selected.id, item: selected }] : rest;
+  }, [reports, zoom, selectedReportId]);
 
   return (
-    <div className="relative h-full w-full">
+    <div className="relative h-full w-full" role="region" aria-label={t("mapLabel")}>
       <Map
         ref={mapRef}
-        {...viewState}
-        onMove={(evt) => setViewState(evt.viewState)}
-        onMoveEnd={handleMoveEnd}
+        initialViewState={{ ...initialCenter, zoom: 14 }}
+        onLoad={(e) => {
+          // Compact attribution starts expanded over the map; keep it behind
+          // its (i) button until the user asks.
+          e.target.getContainer().querySelector(".maplibregl-ctrl-attrib")?.classList.remove("maplibregl-compact-show");
+          emitViewport();
+        }}
+        onMoveEnd={emitViewport}
+        onClick={onMapClick}
         mapStyle={OPENFREEMAP_STYLE}
         style={{ width: "100%", height: "100%" }}
-        attributionControl={{ compact: true }}
+        attributionControl={false}
       >
+        <AttributionControl position="bottom-left" compact />
         <NavigationControl position="bottom-right" showCompass={false} />
 
-        {userLocation && !pickMode && (
+        {userLocation && (
           <Marker latitude={userLocation.latitude} longitude={userLocation.longitude} anchor="center">
             <LocationDot />
           </Marker>
         )}
 
-        {!pickMode &&
-          reports.map((report) => (
+        {clusters.map((c) => {
+          if (c.kind === "cluster") {
+            const worst = Math.max(...c.items.map((r) => severityRank(r.severity)));
+            return (
+              <Marker
+                key={c.key}
+                latitude={c.latitude}
+                longitude={c.longitude}
+                anchor="center"
+                style={{ zIndex: 1 }}
+                onClick={(e) => {
+                  e.originalEvent.stopPropagation();
+                  if (pickMode) return;
+                  mapRef.current?.flyTo({
+                    center: [c.longitude, c.latitude],
+                    zoom: Math.min(CLUSTER_MAX_ZOOM, mapRef.current.getZoom() + 2),
+                    duration: 500,
+                  });
+                }}
+              >
+                <ClusterMarker
+                  count={c.items.length}
+                  worstRank={worst}
+                  label={t("clusterAriaLabel", { n: c.items.length })}
+                  dimmed={pickMode}
+                />
+              </Marker>
+            );
+          }
+          const report = c.item;
+          const selected = report.id === selectedReportId;
+          return (
             <Marker
-              key={report.id}
+              key={c.key}
               latitude={report.latitude}
               longitude={report.longitude}
-              anchor="bottom"
+              anchor="center"
+              style={{ zIndex: selected ? 3 : severityRank(report.severity) >= 3 ? 2 : 1 }}
               onClick={(e) => {
                 e.originalEvent.stopPropagation();
-                onSelectReport(report.id);
+                if (!pickMode) onSelectReport(report);
               }}
             >
-              <ReportMarker report={report} selected={report.id === selectedReportId} />
+              <ReportMarker report={report} selected={selected} now={now} dimmed={pickMode} />
             </Marker>
-          ))}
+          );
+        })}
       </Map>
 
       {pickMode && (
-        <div className="pointer-events-none absolute inset-0 flex items-center justify-center pb-8">
+        <div
+          className="pointer-events-none absolute inset-x-0 top-0 z-10 flex items-center justify-center pb-8"
+          style={{ bottom: padBottom }}
+        >
           <CenterPin />
         </div>
       )}
     </div>
   );
-}
+});

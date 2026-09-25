@@ -1,24 +1,7 @@
 import type { Locale, TranslateFn } from "@/lib/i18n/locale";
 
-// A report verified within this window reads as "up to date"; older (but not
-// yet expired) reports are flagged as possibly stale. Well inside the
-// default 2h REPORT_TTL so the warning shows up before the report expires.
-export const FRESH_WINDOW_MS = 30 * 60_000;
-
-export type FreshnessState = "recent" | "stale" | "expired";
-
-export function freshnessState(
-  report: { last_verified_at: string; expires_at: string; is_expired: boolean },
-  now: Date = new Date(),
-): FreshnessState {
-  if (report.is_expired || now.getTime() >= new Date(report.expires_at).getTime()) return "expired";
-  return now.getTime() - new Date(report.last_verified_at).getTime() <= FRESH_WINDOW_MS ? "recent" : "stale";
-}
-
-export function formatFreshness(lastVerifiedAt: string, t: TranslateFn, now: Date = new Date()): string {
-  const verified = new Date(lastVerifiedAt);
-  const diffMs = now.getTime() - verified.getTime();
-  const diffMin = Math.round(diffMs / 60000);
+export function formatFreshness(iso: string, t: TranslateFn, now: Date = new Date()): string {
+  const diffMin = Math.round((now.getTime() - new Date(iso).getTime()) / 60000);
 
   if (diffMin < 1) return t("justNow");
   if (diffMin < 60) return t("minutesAgo", { n: diffMin });
@@ -26,8 +9,7 @@ export function formatFreshness(lastVerifiedAt: string, t: TranslateFn, now: Dat
   const diffHr = Math.round(diffMin / 60);
   if (diffHr < 24) return t("hoursAgo", { n: diffHr });
 
-  const diffDay = Math.round(diffHr / 24);
-  return t("daysAgo", { n: diffDay });
+  return t("daysAgo", { n: Math.round(diffHr / 24) });
 }
 
 // Elapsed time without the "ago" suffix, e.g. "58 min" — for phrasing like
@@ -50,4 +32,16 @@ export function formatClockTime(iso: string, locale: Locale, now: Date = new Dat
   if (date.toDateString() === now.toDateString()) return clock;
   const day = new Intl.DateTimeFormat(tag, { day: "numeric", month: "short" }).format(date);
   return `${day} ${clock}`;
+}
+
+// The single "how current is this" line used on cards and the detail sheet:
+// "Confirmed 3m ago" when someone has vouched for it since it was reported,
+// otherwise "Updated 8m ago".
+export function freshnessLine(
+  report: { last_verified_at: string; still_active_count: number },
+  t: TranslateFn,
+  now: Date = new Date(),
+): string {
+  const ago = formatFreshness(report.last_verified_at, t, now);
+  return report.still_active_count > 0 ? t("confirmedAgo", { ago }) : t("updatedAgo", { ago });
 }

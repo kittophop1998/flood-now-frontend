@@ -49,30 +49,35 @@
 }
 
 :root {
+  /* FloodNow civic palette: white surfaces, navy primary. Semantic states
+     (teal ok / amber caution / orange avoid / red danger) live in
+     lib/report-meta.ts as Tailwind classes and are always paired with an
+     icon + label, never color alone. */
+  --font-sans: var(--font-geist-sans), var(--font-plex-thai), ui-sans-serif, system-ui, sans-serif;
   --background: oklch(1 0 0);
-  --foreground: oklch(0.145 0 0);
+  --foreground: oklch(0.21 0.03 264);
   --card: oklch(1 0 0);
-  --card-foreground: oklch(0.145 0 0);
+  --card-foreground: oklch(0.21 0.03 264);
   --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.145 0 0);
-  --primary: oklch(0.205 0 0);
-  --primary-foreground: oklch(0.985 0 0);
-  --secondary: oklch(0.97 0 0);
-  --secondary-foreground: oklch(0.205 0 0);
-  --muted: oklch(0.97 0 0);
-  --muted-foreground: oklch(0.556 0 0);
-  --accent: oklch(0.97 0 0);
-  --accent-foreground: oklch(0.205 0 0);
+  --popover-foreground: oklch(0.21 0.03 264);
+  --primary: oklch(0.37 0.12 263);
+  --primary-foreground: oklch(0.99 0 0);
+  --secondary: oklch(0.965 0.008 255);
+  --secondary-foreground: oklch(0.3 0.06 263);
+  --muted: oklch(0.97 0.005 255);
+  --muted-foreground: oklch(0.5 0.025 260);
+  --accent: oklch(0.95 0.02 255);
+  --accent-foreground: oklch(0.3 0.08 263);
   --destructive: oklch(0.577 0.245 27.325);
-  --border: oklch(0.922 0 0);
-  --input: oklch(0.922 0 0);
-  --ring: oklch(0.708 0 0);
+  --border: oklch(0.92 0.008 255);
+  --input: oklch(0.9 0.01 255);
+  --ring: oklch(0.55 0.16 258);
   --chart-1: oklch(0.87 0 0);
   --chart-2: oklch(0.556 0 0);
   --chart-3: oklch(0.439 0 0);
   --chart-4: oklch(0.371 0 0);
   --chart-5: oklch(0.269 0 0);
-  --radius: 0.625rem;
+  --radius: 0.75rem;
   --sidebar: oklch(0.985 0 0);
   --sidebar-foreground: oklch(0.145 0 0);
   --sidebar-primary: oklch(0.205 0 0);
@@ -81,6 +86,10 @@
   --sidebar-accent-foreground: oklch(0.205 0 0);
   --sidebar-border: oklch(0.922 0 0);
   --sidebar-ring: oklch(0.708 0 0);
+
+  /* Layout: bottom navigation height including the iPhone home indicator. */
+  --nav-h: calc(4rem + env(safe-area-inset-bottom));
+  --safe-top: env(safe-area-inset-top);
 }
 
 .dark {
@@ -126,5 +135,27 @@
   }
   html {
     @apply font-sans;
+  }
+}
+
+@layer utilities {
+  /* Horizontal chip rows scroll without a visible scrollbar. */
+  .no-scrollbar {
+    scrollbar-width: none;
+  }
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+/* MapLibre controls sit above whatever panel covers the bottom of the map. */
+.maplibregl-ctrl-bottom-left,
+.maplibregl-ctrl-bottom-right {
+  bottom: var(--map-bottom-inset, 0px);
+}
+/* Phones pinch-zoom; the +/- buttons are for mouse/keyboard on wider screens. */
+@media (max-width: 639px) {
+  .maplibregl-ctrl-bottom-right .maplibregl-ctrl-group {
+    display: none;
   }
 }
