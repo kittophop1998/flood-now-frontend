@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { reportsService } from "@/services/reports-service";
 import { ApiError } from "@/services/api-client";
 import { getDeviceId } from "@/lib/device-id";
@@ -11,8 +11,13 @@ export function useConfirmReport() {
   const { t } = useTranslation();
   const [pendingStatus, setPendingStatus] = useState<ConfirmationStatus | null>(null);
   const [error, setError] = useState<string | null>(null);
+  // pendingStatus only disables the buttons after a re-render; the ref also
+  // drops a second tap that lands before that render happens.
+  const inFlight = useRef(false);
 
   async function confirm(reportId: string, status: ConfirmationStatus): Promise<Report | null> {
+    if (inFlight.current) return null;
+    inFlight.current = true;
     setPendingStatus(status);
     setError(null);
     try {
@@ -21,6 +26,7 @@ export function useConfirmReport() {
       setError(err instanceof ApiError ? err.message : t("failedConfirmReport"));
       return null;
     } finally {
+      inFlight.current = false;
       setPendingStatus(null);
     }
   }

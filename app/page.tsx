@@ -4,6 +4,7 @@ import dynamic from "next/dynamic";
 import { useCallback, useMemo, useRef, useState } from "react";
 import { Plus, Navigation, X, Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle } from "@/components/ui/drawer";
 import { MapLoadingOverlay, MapErrorBanner, LocationDeniedBanner } from "@/components/map/map-states";
 import { ReportForm } from "@/components/report/report-form";
@@ -42,6 +43,11 @@ export default function HomePage() {
 
   const [mode, setMode] = useState<Mode>({ kind: "browse" });
   const mapCenterRef = useRef(initialCenter);
+  // Closing the detail modal is two-phase: hide the dialog first, then leave
+  // detail mode once the exit animation finishes, so the popup doesn't empty
+  // out mid-fade.
+  const [detailClosing, setDetailClosing] = useState(false);
+  const detailContentRef = useRef<HTMLDivElement>(null);
 
   const handleCenterChange = useCallback((latitude: number, longitude: number) => {
     mapCenterRef.current = { latitude, longitude };
@@ -82,7 +88,22 @@ export default function HomePage() {
   const selectedReport: Report | undefined =
     mode.kind === "detail" ? reports.find((r) => r.id === mode.reportId) : undefined;
 
-  const drawerOpen = mode.kind === "creating" || mode.kind === "detail";
+  const detailOpen = selectedReport != null && !detailClosing;
+
+  function handleDetailOpenChangeComplete(open: boolean) {
+    if (open) return;
+    setDetailClosing(false);
+    setMode((prev) => (prev.kind === "detail" ? { kind: "browse" } : prev));
+  }
+
+  // Land focus on the close button at the top rather than the first control
+  // in the body — otherwise a tall modal can open pre-scrolled to the
+  // confirm buttons.
+  function focusDetailClose() {
+    return detailContentRef.current?.querySelector<HTMLElement>('[data-slot="dialog-close"]') ?? true;
+  }
+
+  const userLocation = geo.status === "granted" ? { latitude: geo.latitude, longitude: geo.longitude } : null;
 
   return (
     <main className="relative h-dvh w-full overflow-hidden">
@@ -91,7 +112,7 @@ export default function HomePage() {
         reports={reports}
         onSelectReport={(id) => setMode({ kind: "detail", reportId: id })}
         selectedReportId={mode.kind === "detail" ? mode.reportId : null}
-        userLocation={geo.status === "granted" ? { latitude: geo.latitude, longitude: geo.longitude } : null}
+        userLocation={userLocation}
         pickMode={mode.kind === "picking"}
         onPickLocationChange={handlePickLocationChange}
         onCenterChange={handleCenterChange}
@@ -137,7 +158,7 @@ export default function HomePage() {
         </div>
       )}
 
-      <Drawer open={drawerOpen} onOpenChange={(open) => !open && closeDrawer()}>
+      <Drawer open={mode.kind === "creating"} onOpenChange={(open) => !open && closeDrawer()}>
         <DrawerContent className="max-h-[88dvh]">
           {mode.kind === "creating" && (
             <>
@@ -154,17 +175,27 @@ export default function HomePage() {
               />
             </>
           )}
-
-          {mode.kind === "detail" && selectedReport && (
-            <>
-              <DrawerHeader>
-                <DrawerTitle>{t("reportDetailTitle")}</DrawerTitle>
-              </DrawerHeader>
-              <ReportDetail key={selectedReport.id} report={selectedReport} onConfirmed={upsertReport} />
-            </>
-          )}
         </DrawerContent>
       </Drawer>
+
+      {/* Report detail floats over the map as a centered modal; the map's own
+          view state is untouched, so position/zoom survive closing it. */}
+      <Dialog open={detailOpen} onOpenChange={(open) => !open && setDetailClosing(true)} onOpenChangeComplete={handleDetailOpenChangeComplete}>
+        <DialogContent
+          ref={detailContentRef}
+          initialFocus={focusDetailClose}
+          className="flex max-h-[88dvh] w-full max-w-[calc(100%-1.5rem)] flex-col gap-0 overflow-hidden rounded-2xl p-0 shadow-2xl sm:max-h-[85dvh] sm:max-w-[520px]"
+        >
+          {selectedReport && (
+            <ReportDetail
+              key={selectedReport.id}
+              report={selectedReport}
+              userLocation={userLocation}
+              onConfirmed={upsertReport}
+            />
+          )}
+        </DialogContent>
+      </Dialog>
     </main>
   );
 }
