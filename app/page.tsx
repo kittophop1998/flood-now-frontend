@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import { CircleAlert, CloudUpload, Layers, LocateFixed, MapPinOff, SearchX, Siren, WifiOff, ZoomIn } from "lucide-react";
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle } from "@/components/ui/drawer";
 import { BottomNav, type AppTab } from "@/components/bottom-nav";
+import { InstallPrompt } from "@/components/install-prompt";
 import { MapNotice, MapStatusPill } from "@/components/map/map-states";
 import { MapTopBar } from "@/components/map/map-top-bar";
 import { FilterSheet } from "@/components/map/filter-sheet";
@@ -680,6 +681,7 @@ export default function HomePage() {
         onApply={changeFilters}
         canFilterNearMe={userLocation != null}
       />
+      <InstallPrompt />
       <LayersSheet open={layersSheetOpen} onOpenChange={setLayersSheetOpen} layers={layers} onChange={setLayers} />
 
       <Drawer open={mode.kind === "creating"} onOpenChange={(open) => !open && cancelReport()}>

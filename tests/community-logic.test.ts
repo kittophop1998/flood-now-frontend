@@ -158,3 +158,21 @@ test("trip hand-off uses walking directions only for pedestrians", () => {
   assert.ok(tripDirectionsUrl(a, b, false).includes("travelmode=driving"));
   assert.ok(tripDirectionsUrl(a, b, false).includes("origin=13.75%2C100.5"));
 });
+
+test("install prompt: phones only, once, never when already installed", async () => {
+  const { installModeFor } = await import("@/lib/install-prompt");
+  const android = "Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 Chrome/128 Mobile Safari/537.36";
+  const iphone = "Mozilla/5.0 (iPhone; CPU iPhone OS 17_5 like Mac OS X) AppleWebKit/605.1.15 Version/17.5 Mobile/15E148 Safari/604.1";
+  const ipad = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 Version/17.5 Safari/605.1.15";
+  const desktop = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/128 Safari/537.36";
+  const base = { maxTouchPoints: 5, standalone: false, seen: false, nativePromptAvailable: false };
+
+  assert.equal(installModeFor({ ...base, userAgent: android, nativePromptAvailable: true }), "native");
+  assert.equal(installModeFor({ ...base, userAgent: android }), "manual");
+  assert.equal(installModeFor({ ...base, userAgent: iphone }), "ios");
+  assert.equal(installModeFor({ ...base, userAgent: ipad }), "ios", "iPadOS reports as a Mac");
+  assert.equal(installModeFor({ ...base, userAgent: desktop, maxTouchPoints: 0 }), null);
+  assert.equal(installModeFor({ ...base, userAgent: ipad, maxTouchPoints: 0 }), null, "a real Mac is desktop");
+  assert.equal(installModeFor({ ...base, userAgent: iphone, seen: true }), null);
+  assert.equal(installModeFor({ ...base, userAgent: android, standalone: true, nativePromptAvailable: true }), null);
+});

@@ -629,6 +629,16 @@ export const en = {
   "adminStatus.scheduled": "Scheduled",
   "adminStatus.active": "Active",
   "adminStatus.expired": "Ended",
+  // Install prompt (PWA)
+  installTitle: "Install FloodNow on your phone",
+  installBody: "Add it to your home screen to open the flood map in one tap, full screen, and keep the last loaded data when the signal is weak.",
+  installNow: "Install",
+  installLater: "Not now",
+  installGotIt: "Got it",
+  installIosStep1: "Tap Share in the Safari toolbar",
+  installIosStep2: "Choose “Add to Home Screen”, then Add",
+  installManualStep1: "Open your browser menu",
+  installManualStep2: "Choose “Install app” or “Add to Home screen”",
 } as const;
 
 export type TranslationKey = keyof typeof en;

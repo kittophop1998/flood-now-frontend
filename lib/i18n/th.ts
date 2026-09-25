@@ -616,4 +616,14 @@ export const th: Record<TranslationKey, string> = {
   "adminStatus.scheduled": "ตั้งเวลาไว้",
   "adminStatus.active": "มีผล",
   "adminStatus.expired": "สิ้นสุดแล้ว",
+  // Install prompt (PWA)
+  installTitle: "ติดตั้ง FloodNow บนมือถือ",
+  installBody: "เพิ่มไว้ที่หน้าจอหลักเพื่อเปิดแผนที่น้ำท่วมได้ในแตะเดียวแบบเต็มจอ และยังดูข้อมูลล่าสุดได้เมื่อสัญญาณไม่ดี",
+  installNow: "ติดตั้ง",
+  installLater: "ไว้ทีหลัง",
+  installGotIt: "เข้าใจแล้ว",
+  installIosStep1: "แตะปุ่มแชร์ในแถบเครื่องมือของ Safari",
+  installIosStep2: "เลือก “เพิ่มไปยังหน้าจอโฮม” แล้วแตะ เพิ่ม",
+  installManualStep1: "เปิดเมนูของเบราว์เซอร์",
+  installManualStep2: "เลือก “ติดตั้งแอป” หรือ “เพิ่มลงในหน้าจอหลัก”",
 };

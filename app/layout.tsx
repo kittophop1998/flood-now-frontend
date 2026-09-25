@@ -26,7 +26,9 @@ export const metadata: Metadata = {
   title: "FloodNow",
   description: "Community flood and road-condition reports — see what's passable right now.",
   manifest: "/manifest.json",
-  icons: { icon: "/icon.svg" },
+  icons: { icon: "/icon.svg", apple: "/apple-touch-icon.png" },
+  // iOS "Add to Home Screen" opens full-screen like an installed app.
+  appleWebApp: { capable: true, title: "FloodNow", statusBarStyle: "default" },
 };
 
 export const viewport: Viewport = {
