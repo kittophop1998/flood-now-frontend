@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import Map, { Marker, NavigationControl, type MapRef } from "react-map-gl/maplibre";
+import { setWorkerUrl } from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
 import { ReportMarker } from "@/components/map/report-marker";
 import { LocationDot } from "@/components/map/location-dot";
@@ -9,6 +10,12 @@ import { CenterPin } from "@/components/map/center-pin";
 import type { Report } from "@/types/report";
 
 const OPENFREEMAP_STYLE = "https://tiles.openfreemap.org/styles/liberty";
+
+// Turbopack can't statically resolve maplibre-gl's internal
+// `new URL(`./${file}`, import.meta.url)` worker lookup, so the map silently
+// fails to render ("Worker failed to load"). Point it at a self-hosted copy
+// instead (kept in sync with the maplibre-gl version in package.json).
+setWorkerUrl("/maplibre-gl-worker.js");
 
 export interface MapViewProps {
   center: { latitude: number; longitude: number };
