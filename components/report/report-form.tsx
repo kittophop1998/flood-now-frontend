@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { MapPin, Pencil } from "lucide-react";
@@ -17,8 +17,9 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { ImagePicker } from "@/components/report/image-picker";
-import { reportFormSchema, type ReportFormValues } from "@/lib/report-schema";
-import { REPORT_TYPE_META, SEVERITY_META } from "@/lib/report-meta";
+import { createReportFormSchema, type ReportFormValues } from "@/lib/report-schema";
+import { reportTypeLabel, severityLabel } from "@/lib/report-meta";
+import { useTranslation } from "@/lib/i18n/locale-context";
 import { REPORT_TYPES, SEVERITIES } from "@/types/report";
 import type { CreateReportInput } from "@/types/report";
 
@@ -37,8 +38,10 @@ export function ReportForm({
   submitting: boolean;
   submitError: string | null;
 }) {
+  const { t } = useTranslation();
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imageError, setImageError] = useState<string | null>(null);
+  const reportFormSchema = useMemo(() => createReportFormSchema(t), [t]);
 
   const {
     control,
@@ -90,24 +93,24 @@ export function ReportForm({
         </span>
         <span className="flex items-center gap-1 font-medium text-primary">
           <Pencil className="size-3.5" aria-hidden />
-          Change
+          {t("change")}
         </span>
       </button>
 
       <div className="grid gap-2">
-        <Label>Type</Label>
+        <Label>{t("typeLabel")}</Label>
         <Controller
           control={control}
           name="type"
           render={({ field }) => (
             <Select value={field.value} onValueChange={field.onChange}>
               <SelectTrigger className="h-12 w-full text-base">
-                <SelectValue placeholder="What's happening?" />
+                <SelectValue placeholder={t("typePlaceholder")} />
               </SelectTrigger>
               <SelectContent>
-                {REPORT_TYPES.map((t) => (
-                  <SelectItem key={t} value={t}>
-                    {REPORT_TYPE_META[t].label}
+                {REPORT_TYPES.map((reportType) => (
+                  <SelectItem key={reportType} value={reportType}>
+                    {reportTypeLabel(t, reportType)}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -118,19 +121,19 @@ export function ReportForm({
       </div>
 
       <div className="grid gap-2">
-        <Label>Severity</Label>
+        <Label>{t("severityLabel")}</Label>
         <Controller
           control={control}
           name="severity"
           render={({ field }) => (
             <Select value={field.value} onValueChange={field.onChange}>
               <SelectTrigger className="h-12 w-full text-base">
-                <SelectValue placeholder="How bad is it?" />
+                <SelectValue placeholder={t("severityPlaceholder")} />
               </SelectTrigger>
               <SelectContent>
                 {SEVERITIES.map((s) => (
                   <SelectItem key={s} value={s}>
-                    {SEVERITY_META[s].label}
+                    {severityLabel(t, s)}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -142,7 +145,7 @@ export function ReportForm({
 
       {isFlooded && (
         <div className="grid gap-2">
-          <Label htmlFor="water_level_cm">Water level (cm)</Label>
+          <Label htmlFor="water_level_cm">{t("waterLevelFieldLabel")}</Label>
           <Controller
             control={control}
             name="water_level_cm"
@@ -162,24 +165,22 @@ export function ReportForm({
       )}
 
       <div className="grid gap-2">
-        <Label htmlFor="description">Description (optional)</Label>
+        <Label htmlFor="description">{t("descriptionLabel")}</Label>
         <Controller
           control={control}
           name="description"
           render={({ field }) => (
-            <Textarea id="description" rows={3} placeholder="Anything else people should know" {...field} value={field.value ?? ""} />
+            <Textarea id="description" rows={3} placeholder={t("descriptionPlaceholder")} {...field} value={field.value ?? ""} />
           )}
         />
       </div>
 
       {isHelpNeeded && (
         <div className="flex flex-col gap-3 rounded-lg border border-red-200 bg-red-50 p-3">
-          <p className="text-sm font-medium text-red-800">
-            Help-needed reports are shown to nearby users as urgent — this app does not dispatch official rescue services.
-          </p>
+          <p className="text-sm font-medium text-red-800">{t("helpNeededNotice")}</p>
 
           <div className="grid gap-2">
-            <Label htmlFor="people_count">People count</Label>
+            <Label htmlFor="people_count">{t("peopleCountLabel")}</Label>
             <Controller
               control={control}
               name="people_count"
@@ -198,21 +199,21 @@ export function ReportForm({
           </div>
 
           <div className="flex items-center justify-between rounded-md bg-white px-3 py-2.5">
-            <Label htmlFor="has_child" className="font-normal">Child present</Label>
+            <Label htmlFor="has_child" className="font-normal">{t("childPresent")}</Label>
             <Controller control={control} name="has_child" render={({ field }) => (
               <Switch id="has_child" checked={!!field.value} onCheckedChange={field.onChange} />
             )} />
           </div>
 
           <div className="flex items-center justify-between rounded-md bg-white px-3 py-2.5">
-            <Label htmlFor="has_elderly" className="font-normal">Elderly present</Label>
+            <Label htmlFor="has_elderly" className="font-normal">{t("elderlyPresent")}</Label>
             <Controller control={control} name="has_elderly" render={({ field }) => (
               <Switch id="has_elderly" checked={!!field.value} onCheckedChange={field.onChange} />
             )} />
           </div>
 
           <div className="grid gap-2">
-            <Label htmlFor="contact_phone">Contact phone (optional)</Label>
+            <Label htmlFor="contact_phone">{t("contactPhoneLabel")}</Label>
             <Controller
               control={control}
               name="contact_phone"
@@ -225,7 +226,7 @@ export function ReportForm({
       )}
 
       <div className="grid gap-2">
-        <Label>Photo</Label>
+        <Label>{t("photoLabel")}</Label>
         <ImagePicker file={imageFile} onChange={setImageFile} error={imageError} onError={setImageError} />
       </div>
 
@@ -236,7 +237,7 @@ export function ReportForm({
       )}
 
       <Button type="submit" size="lg" className="h-12 text-base" disabled={submitting}>
-        {submitting ? "Submitting…" : "Submit report"}
+        {submitting ? t("submitting") : t("submitReport")}
       </Button>
     </form>
   );

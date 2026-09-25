@@ -4,9 +4,11 @@ import { useState } from "react";
 import { reportsService } from "@/services/reports-service";
 import { ApiError } from "@/services/api-client";
 import { getDeviceId } from "@/lib/device-id";
+import { useTranslation } from "@/lib/i18n/locale-context";
 import type { ConfirmationStatus, Report } from "@/types/report";
 
 export function useConfirmReport() {
+  const { t } = useTranslation();
   const [pendingStatus, setPendingStatus] = useState<ConfirmationStatus | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -16,7 +18,7 @@ export function useConfirmReport() {
     try {
       return await reportsService.confirm(reportId, { device_id: getDeviceId(), status });
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Failed to confirm report.");
+      setError(err instanceof ApiError ? err.message : t("failedConfirmReport"));
       return null;
     } finally {
       setPendingStatus(null);

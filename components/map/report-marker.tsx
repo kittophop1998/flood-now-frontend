@@ -1,11 +1,15 @@
-import { REPORT_TYPE_META } from "@/lib/report-meta";
+"use client";
+
+import { REPORT_TYPE_META, reportTypeLabel } from "@/lib/report-meta";
 import { cn } from "@/lib/utils";
+import { useTranslation } from "@/lib/i18n/locale-context";
 import type { Report } from "@/types/report";
 
 // Markers distinguish type by icon+shape, not color alone — help_needed
 // gets an emphasized pulse treatment as an urgency signal (never implying
 // official rescue dispatch — see docs/product-spec.md).
 export function ReportMarker({ report, selected }: { report: Report; selected: boolean }) {
+  const { t } = useTranslation();
   const meta = REPORT_TYPE_META[report.type];
   const Icon = meta.icon;
   const isHelp = report.type === "help_needed";
@@ -13,7 +17,7 @@ export function ReportMarker({ report, selected }: { report: Report; selected: b
   return (
     <button
       type="button"
-      aria-label={`${meta.label} report`}
+      aria-label={t("reportAriaLabel", { type: reportTypeLabel(t, report.type) })}
       className="relative flex size-11 -translate-y-1 items-center justify-center focus:outline-none"
     >
       {isHelp && (

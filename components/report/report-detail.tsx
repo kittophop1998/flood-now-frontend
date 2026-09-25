@@ -10,12 +10,14 @@ import { useConfirmReport } from "@/features/reports/use-confirm-report";
 import { getConfirmedStatus, setConfirmedStatus } from "@/lib/confirmed-reports";
 import { imageKitUrl } from "@/lib/imagekit";
 import { cn } from "@/lib/utils";
+import { useTranslation } from "@/lib/i18n/locale-context";
 import type { ConfirmationStatus, Report } from "@/types/report";
 
 // Callers must render this with `key={report.id}` so switching reports
 // remounts the component — that lets deviceStatus initialize lazily from
 // localStorage instead of syncing it via an effect.
 export function ReportDetail({ report, onConfirmed }: { report: Report; onConfirmed: (updated: Report) => void }) {
+  const { t } = useTranslation();
   const { confirm, pendingStatus, error } = useConfirmReport();
   const [deviceStatus, setDeviceStatus] = useState<ConfirmationStatus | null>(() => getConfirmedStatus(report.id));
 
@@ -41,13 +43,13 @@ export function ReportDetail({ report, onConfirmed }: { report: Report; onConfir
 
       {report.type === "help_needed" && (
         <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800">
-          This is a community help request, not a dispatched emergency service.
+          {t("helpNotDispatchNotice")}
         </div>
       )}
 
       {imageUrl && (
         // eslint-disable-next-line @next/next/no-img-element
-        <img src={imageUrl} alt="Report photo" className="h-48 w-full rounded-lg object-cover" />
+        <img src={imageUrl} alt={t("reportPhotoAlt")} className="h-48 w-full rounded-lg object-cover" />
       )}
 
       {report.description && <p className="text-sm leading-relaxed">{report.description}</p>}
@@ -59,7 +61,7 @@ export function ReportDetail({ report, onConfirmed }: { report: Report; onConfir
 
       {report.water_level_cm != null && (
         <div className="text-sm">
-          <span className="font-medium">Water level:</span> {report.water_level_cm} cm
+          <span className="font-medium">{t("waterLevelLabel")}</span> {report.water_level_cm} {t("cmUnit")}
         </div>
       )}
 
@@ -68,19 +70,19 @@ export function ReportDetail({ report, onConfirmed }: { report: Report; onConfir
           {report.people_count != null && (
             <div className="flex items-center gap-2">
               <Users className="size-4 shrink-0 text-muted-foreground" aria-hidden />
-              {report.people_count} {report.people_count === 1 ? "person" : "people"}
+              {t(report.people_count === 1 ? "personCountOne" : "personCountOther", { n: report.people_count })}
             </div>
           )}
           {report.has_child && (
             <div className="flex items-center gap-2">
               <Baby className="size-4 shrink-0 text-muted-foreground" aria-hidden />
-              Child present
+              {t("childPresent")}
             </div>
           )}
           {report.has_elderly && (
             <div className="flex items-center gap-2">
               <PersonStanding className="size-4 shrink-0 text-muted-foreground" aria-hidden />
-              Elderly present
+              {t("elderlyPresent")}
             </div>
           )}
           {report.contact_phone && (
@@ -95,7 +97,7 @@ export function ReportDetail({ report, onConfirmed }: { report: Report; onConfir
       <Separator />
 
       <div>
-        <p className="mb-2 text-sm font-medium">Is this still accurate?</p>
+        <p className="mb-2 text-sm font-medium">{t("stillAccurateQuestion")}</p>
         <div className="grid grid-cols-2 gap-2">
           <Button
             type="button"
@@ -109,7 +111,7 @@ export function ReportDetail({ report, onConfirmed }: { report: Report; onConfir
             ) : (
               <CheckCircle2 className="size-4" />
             )}
-            Still active
+            {t("stillActive")}
           </Button>
           <Button
             type="button"
@@ -119,11 +121,11 @@ export function ReportDetail({ report, onConfirmed }: { report: Report; onConfir
             onClick={() => handleConfirm("cleared")}
           >
             {pendingStatus === "cleared" ? <Loader2 className="size-4 animate-spin" /> : <XCircle className="size-4" />}
-            Cleared
+            {t("cleared")}
           </Button>
         </div>
         <p className="mt-2 text-xs text-muted-foreground">
-          {report.still_active_count} confirmed still active · {report.cleared_count} confirmed cleared
+          {t("confirmationSummary", { stillActive: report.still_active_count, cleared: report.cleared_count })}
         </p>
         {error && <p className="mt-2 text-sm text-destructive">{error}</p>}
       </div>

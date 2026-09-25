@@ -5,9 +5,11 @@ import { reportsService } from "@/services/reports-service";
 import { uploadReportImage } from "@/services/uploads-service";
 import { compressReportImage } from "@/lib/image-compression";
 import { ApiError } from "@/services/api-client";
+import { useTranslation } from "@/lib/i18n/locale-context";
 import type { CreateReportInput, Report } from "@/types/report";
 
 export function useCreateReport() {
+  const { t } = useTranslation();
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -22,7 +24,7 @@ export function useCreateReport() {
       }
       return await reportsService.create({ ...input, image_key: imageKey });
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Failed to create report.");
+      setError(err instanceof ApiError ? err.message : t("failedCreateReport"));
       return null;
     } finally {
       setSubmitting(false);

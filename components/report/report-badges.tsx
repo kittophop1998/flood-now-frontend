@@ -1,8 +1,12 @@
+"use client";
+
+import { useTranslation } from "@/lib/i18n/locale-context";
 import { cn } from "@/lib/utils";
-import { REPORT_TYPE_META, SEVERITY_META } from "@/lib/report-meta";
+import { REPORT_TYPE_META, SEVERITY_META, reportTypeLabel, severityLabel } from "@/lib/report-meta";
 import type { ReportType, Severity } from "@/types/report";
 
 export function TypeBadge({ type, className }: { type: ReportType; className?: string }) {
+  const { t } = useTranslation();
   const meta = REPORT_TYPE_META[type];
   const Icon = meta.icon;
   return (
@@ -14,12 +18,13 @@ export function TypeBadge({ type, className }: { type: ReportType; className?: s
       )}
     >
       <Icon className="size-4" aria-hidden />
-      {meta.label}
+      {reportTypeLabel(t, type)}
     </span>
   );
 }
 
 export function SeverityBadge({ severity, className }: { severity: Severity; className?: string }) {
+  const { t } = useTranslation();
   const meta = SEVERITY_META[severity];
   return (
     <span
@@ -29,7 +34,7 @@ export function SeverityBadge({ severity, className }: { severity: Severity; cla
         className,
       )}
     >
-      {meta.label}
+      {severityLabel(t, severity)}
     </span>
   );
 }

@@ -8,9 +8,11 @@ import { Drawer, DrawerContent, DrawerHeader, DrawerTitle } from "@/components/u
 import { MapLoadingOverlay, MapErrorBanner, LocationDeniedBanner } from "@/components/map/map-states";
 import { ReportForm } from "@/components/report/report-form";
 import { ReportDetail } from "@/components/report/report-detail";
+import { LocaleToggle } from "@/components/locale-toggle";
 import { useReports } from "@/features/reports/use-reports";
 import { useCreateReport } from "@/features/reports/use-create-report";
 import { useGeolocation, DEFAULT_CENTER } from "@/features/reports/use-geolocation";
+import { useTranslation } from "@/lib/i18n/locale-context";
 import type { CreateReportInput, Report } from "@/types/report";
 
 const MapView = dynamic(() => import("@/components/map/map-view").then((m) => m.MapView), {
@@ -29,6 +31,7 @@ type Mode =
   | { kind: "detail"; reportId: string };
 
 export default function HomePage() {
+  const { t } = useTranslation();
   const geo = useGeolocation();
   const { reports, status, errorMessage, reload, upsertReport } = useReports();
   const { submit, submitting, error: createError } = useCreateReport();
@@ -99,33 +102,36 @@ export default function HomePage() {
       {status !== "error" && geo.status === "denied" && mode.kind === "browse" && <LocationDeniedBanner />}
 
       {mode.kind === "browse" && (
-        <Button
-          size="lg"
-          className="absolute bottom-6 right-4 h-14 gap-2 rounded-full px-5 text-base shadow-xl"
-          onClick={startPicking}
-        >
-          <Plus className="size-5" aria-hidden />
-          Report
-        </Button>
+        <>
+          <LocaleToggle className="absolute bottom-6 left-4" />
+          <Button
+            size="lg"
+            className="absolute bottom-6 right-4 h-14 gap-2 rounded-full px-5 text-base shadow-xl"
+            onClick={startPicking}
+          >
+            <Plus className="size-5" aria-hidden />
+            {t("reportButton")}
+          </Button>
+        </>
       )}
 
       {mode.kind === "picking" && (
         <div className="absolute inset-x-0 bottom-0 flex flex-col gap-3 bg-background/95 p-4 pb-6 shadow-[0_-4px_16px_rgba(0,0,0,0.08)]">
-          <p className="text-center text-sm text-muted-foreground">Drag the map to place your pin</p>
+          <p className="text-center text-sm text-muted-foreground">{t("dragPinHint")}</p>
           <div className="flex gap-2">
             <Button type="button" variant="outline" size="lg" className="h-12 flex-1 gap-2" onClick={closeDrawer}>
               <X className="size-4" aria-hidden />
-              Cancel
+              {t("cancel")}
             </Button>
             {geo.status === "granted" && (
               <Button type="button" variant="outline" size="lg" className="h-12 gap-2" onClick={useMyLocation}>
                 <Navigation className="size-4" aria-hidden />
-                My location
+                {t("myLocation")}
               </Button>
             )}
             <Button type="button" size="lg" className="h-12 flex-1 gap-2" onClick={confirmLocation}>
               <Check className="size-4" aria-hidden />
-              Use this spot
+              {t("useThisSpot")}
             </Button>
           </div>
         </div>
@@ -136,7 +142,7 @@ export default function HomePage() {
           {mode.kind === "creating" && (
             <>
               <DrawerHeader>
-                <DrawerTitle>New report</DrawerTitle>
+                <DrawerTitle>{t("newReportTitle")}</DrawerTitle>
               </DrawerHeader>
               <ReportForm
                 latitude={mode.latitude}
@@ -152,7 +158,7 @@ export default function HomePage() {
           {mode.kind === "detail" && selectedReport && (
             <>
               <DrawerHeader>
-                <DrawerTitle>Report detail</DrawerTitle>
+                <DrawerTitle>{t("reportDetailTitle")}</DrawerTitle>
               </DrawerHeader>
               <ReportDetail key={selectedReport.id} report={selectedReport} onConfirmed={upsertReport} />
             </>

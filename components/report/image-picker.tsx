@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef } from "react";
 import { Camera, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { validateImageFile } from "@/lib/report-schema";
+import { useTranslation } from "@/lib/i18n/locale-context";
 
 export function ImagePicker({ file, onChange, error, onError }: {
   file: File | null;
@@ -11,6 +12,7 @@ export function ImagePicker({ file, onChange, error, onError }: {
   error: string | null;
   onError: (message: string | null) => void;
 }) {
+  const { t } = useTranslation();
   const inputRef = useRef<HTMLInputElement>(null);
   // Derived directly from `file` rather than mirrored into state — the
   // effect below only owns cleanup (revoking the previous object URL).
@@ -26,7 +28,7 @@ export function ImagePicker({ file, onChange, error, onError }: {
     const selected = e.target.files?.[0] ?? null;
     if (!selected) return;
 
-    const validationError = validateImageFile(selected);
+    const validationError = validateImageFile(selected, t);
     if (validationError) {
       onError(validationError);
       onChange(null);
@@ -61,7 +63,7 @@ export function ImagePicker({ file, onChange, error, onError }: {
               onError(null);
               if (inputRef.current) inputRef.current.value = "";
             }}
-            aria-label="Remove photo"
+            aria-label={t("removePhoto")}
           >
             <X className="size-4" />
           </Button>
@@ -73,7 +75,7 @@ export function ImagePicker({ file, onChange, error, onError }: {
           className="flex h-24 w-full flex-col items-center justify-center gap-1.5 rounded-lg border-2 border-dashed border-border text-muted-foreground transition-colors hover:border-primary hover:text-primary"
         >
           <Camera className="size-5" aria-hidden />
-          <span className="text-sm font-medium">Add a photo (optional)</span>
+          <span className="text-sm font-medium">{t("addPhoto")}</span>
         </button>
       )}
 
