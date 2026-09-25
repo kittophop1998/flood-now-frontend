@@ -174,6 +174,8 @@ export const th: Record<TranslationKey, string> = {
   stepLocation: "ตำแหน่ง",
   editLocation: "แก้ไข",
   stepWhat: "เกิดอะไรขึ้น",
+  reportSosHint: "หากต้องการความช่วยเหลือเร่งด่วน ใช้ SOS",
+  reportSosAction: "ขอความช่วยเหลือ SOS",
   stepSeverity: "รุนแรงแค่ไหน",
   stepDepth: "น้ำลึกแค่ไหน",
   stepHelp: "ใครต้องการความช่วยเหลือ",

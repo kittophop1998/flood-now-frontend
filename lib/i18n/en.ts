@@ -182,6 +182,8 @@ export const en = {
   stepLocation: "Location",
   editLocation: "Edit",
   stepWhat: "What's happening?",
+  reportSosHint: "Need urgent help? Use SOS instead.",
+  reportSosAction: "Request SOS help",
   stepSeverity: "How bad is it?",
   stepDepth: "How deep is the water?",
   stepHelp: "Who needs help?",

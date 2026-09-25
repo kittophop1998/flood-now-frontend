@@ -3,17 +3,20 @@ import assert from "node:assert/strict";
 import { clusterPoints, CLUSTER_MAX_ZOOM } from "@/lib/cluster";
 import { currentStatus, isOpen } from "@/lib/report-status";
 import { applyClientFilters, DEFAULT_FILTERS, toggleChipTypes, toListQuery } from "@/lib/map-filters";
-import { hasKnownPassability, reportTitle, suggestPassability } from "@/lib/report-meta";
+import { CATEGORY_META, categoryLabel, hasKnownPassability, reportTitle, suggestPassability } from "@/lib/report-meta";
+import { createReportFormSchema } from "@/lib/report-schema";
 import { isInCooldown, RECONFIRM_COOLDOWN_MS } from "@/lib/confirmed-reports";
 import { formatDistance } from "@/lib/distance";
 import { freshnessLine } from "@/lib/freshness";
 import { en } from "@/lib/i18n/en";
 import { th } from "@/lib/i18n/th";
 import type { TranslateFn } from "@/lib/i18n/locale";
-import type { Report } from "@/types/report";
+import { CREATABLE_REPORT_TYPES, REPORT_TYPES, type Report } from "@/types/report";
 
 const t: TranslateFn = (key, vars) =>
   en[key].replace(/\{(\w+)\}/g, (_, token: string) => String(vars?.[token] ?? ""));
+
+const tTh: TranslateFn = (key) => th[key];
 
 const NOW = new Date("2026-09-25T12:00:00Z");
 const minutes = (n: number) => new Date(NOW.getTime() + n * 60_000).toISOString();
@@ -148,4 +151,34 @@ test("formatDistance rounds to useful precision", () => {
   assert.equal(formatDistance(5000, t), "5 km");
   assert.equal(formatDistance(2340, t), "2.3 km");
   assert.equal(formatDistance(12_400, t), "12 km");
+});
+
+test("new-report categories exclude the SOS cases; the form schema enforces it", () => {
+  // The CategoryPicker renders exactly this list.
+  assert.deepEqual(
+    CREATABLE_REPORT_TYPES.map((type) => categoryLabel(tTh, type)),
+    ["น้ำท่วม", "ถนนปิด", "อุบัติเหตุ", "สิ่งกีดขวาง", "ไฟดับ", "ศูนย์พักพิง", "จุดช่วยเหลือ"],
+  );
+  const schema = createReportFormSchema(t);
+  for (const type of CREATABLE_REPORT_TYPES) {
+    assert.ok(schema.safeParse({ type, severity: "high" }).success, type);
+  }
+  for (const type of ["vehicle_stalled", "help_needed", "other"]) {
+    assert.ok(!(CREATABLE_REPORT_TYPES as readonly string[]).includes(type), type);
+    assert.ok(!schema.safeParse({ type, severity: "high" }).success, type);
+  }
+});
+
+test("stored reports with retired categories still render with their own label and icon", () => {
+  // Filters/detail/markers read from the full REPORT_TYPES set.
+  for (const type of ["vehicle_stalled", "help_needed", "other"] as const) {
+    assert.ok(REPORT_TYPES.includes(type));
+    assert.ok(CATEGORY_META[type].icon);
+  }
+  assert.equal(categoryLabel(tTh, "vehicle_stalled"), "รถเสีย/รถดับ");
+  assert.equal(categoryLabel(tTh, "help_needed"), "ขอความช่วยเหลือ");
+  assert.equal(categoryLabel(tTh, "other"), "อื่น ๆ");
+  assert.equal(CATEGORY_META.vehicle_stalled.fields.passability, true);
+  assert.equal(CATEGORY_META.help_needed.fields.helpDetails, true);
+  assert.equal(reportTitle(t, report({ type: "vehicle_stalled", water_depth: null })), "Broken-down vehicle");
 });

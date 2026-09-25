@@ -3,7 +3,7 @@
 import { useMemo, useState, type ReactNode } from "react";
 import { useForm, Controller, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { CircleAlert, Loader2, MapPin, Pencil, Send } from "lucide-react";
+import { CircleAlert, Loader2, MapPin, Pencil, Send, Siren } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
@@ -45,6 +45,7 @@ export function ReportForm({
   submitError,
   onConfirmExisting,
   onViewExisting,
+  onRequestSos,
 }: {
   location: LatLng;
   draft: ReportDraft | null;
@@ -54,6 +55,9 @@ export function ReportForm({
   submitError: string | null;
   onConfirmExisting: (report: Report) => Promise<void>;
   onViewExisting: (report: Report) => void;
+  // Reports describe the situation for others; a person who needs help now
+  // is pointed at the separate SOS flow.
+  onRequestSos: () => void;
 }) {
   const { t } = useTranslation();
   const now = useNow();
@@ -152,6 +156,18 @@ export function ReportForm({
               <CategoryPicker value={field.value} onChange={field.onChange} labelledBy="field-type" invalid={!!errors.type} />
             )}
           />
+          <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 rounded-xl bg-red-50 py-1 pr-1 pl-3">
+            <p className="text-xs leading-snug text-red-900">{t("reportSosHint")}</p>
+            <Button
+              type="button"
+              variant="ghost"
+              className="h-11 shrink-0 rounded-lg px-2.5 font-semibold text-red-700 hover:bg-red-100 hover:text-red-800"
+              onClick={onRequestSos}
+            >
+              <Siren aria-hidden />
+              {t("reportSosAction")}
+            </Button>
+          </div>
         </Card>
 
         {duplicate && (

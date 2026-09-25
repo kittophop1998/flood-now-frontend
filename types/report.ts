@@ -15,6 +15,21 @@ export const REPORT_TYPES = [
 ] as const;
 export type ReportType = (typeof REPORT_TYPES)[number];
 
+// Categories a NEW report may use (the API rejects the rest). REPORT_TYPES
+// stays the full set because stored reports can still carry
+// vehicle_stalled / help_needed / other; someone who needs assistance now
+// uses the SOS flow instead.
+export const CREATABLE_REPORT_TYPES = [
+  "flooded",
+  "road_closed",
+  "accident",
+  "obstruction",
+  "power_outage",
+  "shelter",
+  "aid_point",
+] as const satisfies readonly ReportType[];
+export type CreatableReportType = (typeof CREATABLE_REPORT_TYPES)[number];
+
 export const SEVERITIES = ["low", "moderate", "high", "critical"] as const;
 export type Severity = (typeof SEVERITIES)[number];
 

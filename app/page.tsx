@@ -718,6 +718,10 @@ export default function HomePage() {
                   setDraft(null);
                   openReport(r);
                 }}
+                onRequestSos={() => {
+                  cancelReport();
+                  openMore("sos");
+                }}
               />
             </>
           )}

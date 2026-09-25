@@ -4,7 +4,7 @@ import { CATEGORY_META, SEVERITY_META, WATER_DEPTH_META, categoryLabel, severity
 import { DepthGauge } from "@/components/report/report-badges";
 import { useTranslation } from "@/lib/i18n/locale-context";
 import { cn } from "@/lib/utils";
-import { REPORT_TYPES, SEVERITIES, WATER_DEPTHS, type ReportType, type Severity, type WaterDepth } from "@/types/report";
+import { CREATABLE_REPORT_TYPES, SEVERITIES, WATER_DEPTHS, type CreatableReportType, type Severity, type WaterDepth } from "@/types/report";
 
 const optionFocus = "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring";
 
@@ -14,15 +14,18 @@ export function CategoryPicker({
   labelledBy,
   invalid,
 }: {
-  value: ReportType | undefined;
-  onChange: (type: ReportType) => void;
+  value: CreatableReportType | undefined;
+  onChange: (type: CreatableReportType) => void;
   labelledBy: string;
   invalid?: boolean;
 }) {
   const { t } = useTranslation();
+  // Seven categories: flood (the headline case) spans a full row on narrow
+  // screens (1 + 3 + 3) and two cells on wider ones (4 + 4), so the grid
+  // never ends in a half-empty row.
   return (
     <div role="radiogroup" aria-labelledby={labelledBy} aria-invalid={invalid} className="grid grid-cols-3 gap-2 min-[400px]:grid-cols-4">
-      {REPORT_TYPES.map((type) => {
+      {CREATABLE_REPORT_TYPES.map((type, i) => {
         const meta = CATEGORY_META[type];
         const Icon = meta.icon;
         const selected = value === type;
@@ -35,6 +38,7 @@ export function CategoryPicker({
             onClick={() => onChange(type)}
             className={cn(
               "flex min-h-[76px] flex-col items-center justify-center gap-1.5 rounded-xl border px-1 py-2 text-center text-xs leading-tight font-medium transition-colors",
+              i === 0 && "col-span-3 min-[400px]:col-span-2",
               optionFocus,
               selected ? "border-primary bg-accent text-foreground ring-2 ring-primary/30" : "bg-background hover:bg-muted",
             )}

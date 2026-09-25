@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { PASS_LEVELS, REPORT_TYPES, SEVERITIES, WATER_DEPTHS } from "@/types/report";
+import { CREATABLE_REPORT_TYPES, PASS_LEVELS, SEVERITIES, WATER_DEPTHS } from "@/types/report";
 import type { TranslateFn } from "@/lib/i18n/locale";
 
 const passLevel = z.enum(PASS_LEVELS);
@@ -9,7 +9,7 @@ const passLevel = z.enum(PASS_LEVELS);
 // rules so the form fails fast before hitting the network.
 export function createReportFormSchema(t: TranslateFn) {
   return z.object({
-    type: z.enum(REPORT_TYPES, { message: t("chooseReportType") }),
+    type: z.enum(CREATABLE_REPORT_TYPES, { message: t("chooseReportType") }),
     severity: z.enum(SEVERITIES, { message: t("chooseSeverity") }),
     water_depth: z.enum(WATER_DEPTHS).nullable().optional(),
     passability: z
