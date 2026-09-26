@@ -8,8 +8,9 @@ import { useTranslation } from "@/lib/i18n/locale-context";
 import type { Report } from "@/types/report";
 
 // Severity shows as the ring weight + a small corner badge (icon, not just
-// color), so the map stays readable without a legend. Possibly-stale
-// reports are faded and dashed; help requests pulse as an urgency signal
+// color), so the map stays readable without a legend. Every report that
+// isn't active (past stale_at, expired or resolved) stays on the map but is
+// faded and dashed; help requests pulse as an urgency signal
 // (never implying official dispatch — see docs/product-spec.md).
 export const ReportMarker = memo(function ReportMarker({
   report,
@@ -27,7 +28,7 @@ export const ReportMarker = memo(function ReportMarker({
   const Icon = meta.icon;
   const sev = SEVERITY_META[report.severity];
   const SevIcon = sev.icon;
-  const stale = currentStatus(report, now) === "possibly_stale";
+  const stale = currentStatus(report, now) !== "active";
   const rank = severityRank(report.severity);
 
   return (

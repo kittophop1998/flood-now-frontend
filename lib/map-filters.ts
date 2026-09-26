@@ -1,6 +1,6 @@
 import { distanceMeters } from "@/lib/distance";
-import { currentStatus, isOpen } from "@/lib/report-status";
-import type { ListReportsQuery, Report, ReportType, Severity, Vehicle } from "@/types/report";
+import { currentStatus } from "@/lib/report-status";
+import type { ListReportsQuery, Report, ReportStatus, ReportType, Severity, Vehicle } from "@/types/report";
 
 // Category chips on the map. Shelter and aid point share one chip — both
 // answer "where can I get help/shelter".
@@ -21,7 +21,7 @@ export const SEVERE: Severity[] = ["high", "critical"];
 export interface MapFilters {
   types: ReportType[]; // empty = all categories
   severities: Severity[]; // empty = all
-  activeOnly: boolean; // hide "possibly stale"
+  activeOnly: boolean; // hide everything that isn't "active"
   nearMe: boolean;
   radiusKm: (typeof RADIUS_OPTIONS_KM)[number];
   updatedWithinMin: (typeof UPDATED_WITHIN_OPTIONS_MIN)[number] | null;
@@ -38,13 +38,19 @@ export const DEFAULT_FILTERS: MapFilters = {
   blockedFor: null,
 };
 
-// The parts the API filters on. Resolved/expired reports are never requested
-// for the map, so they can't pollute the default view.
+// Every pin stays on the map: reports past their stale_at (and expired or
+// resolved ones) are shown faded by the marker instead of disappearing.
+export const ALL_STATUSES: ReportStatus[] = ["active", "possibly_stale", "expired", "resolved"];
+// Aggregated flood zones (zoomed out) still count only open reports, so old
+// reports don't paint permanent hotspots.
+export const OPEN_STATUSES: ReportStatus[] = ["active", "possibly_stale"];
+
+// The parts the API filters on.
 export function toListQuery(filters: MapFilters, now: Date = new Date()): Omit<ListReportsQuery, "bbox" | "limit"> {
   return {
     types: filters.types.length > 0 ? filters.types : undefined,
     severities: filters.severities.length > 0 ? filters.severities : undefined,
-    statuses: filters.activeOnly ? ["active"] : ["active", "possibly_stale"],
+    statuses: filters.activeOnly ? ["active"] : ALL_STATUSES,
     updatedSince:
       filters.updatedWithinMin != null
         ? new Date(now.getTime() - filters.updatedWithinMin * 60_000).toISOString()
@@ -65,8 +71,7 @@ export function applyClientFilters(
   return reports.filter((r) => {
     if (filters.types.length > 0 && !filters.types.includes(r.type)) return false;
     if (filters.severities.length > 0 && !filters.severities.includes(r.severity)) return false;
-    const status = currentStatus(r, now);
-    if (!isOpen(status) || (filters.activeOnly && status !== "active")) return false;
+    if (filters.activeOnly && currentStatus(r, now) !== "active") return false;
     if (filters.nearMe && userLocation && distanceMeters(userLocation, r) > filters.radiusKm * 1000) return false;
     if (filters.blockedFor) {
       const level = r.passability?.[filters.blockedFor];

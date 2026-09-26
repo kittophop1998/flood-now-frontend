@@ -66,8 +66,8 @@ test("currentStatus re-derives lifecycle from server timestamps", () => {
   assert.ok(isOpen("possibly_stale") && !isOpen("resolved") && !isOpen("expired"));
 });
 
-test("toListQuery never asks the map for resolved or expired reports", () => {
-  assert.deepEqual(toListQuery(DEFAULT_FILTERS, NOW).statuses, ["active", "possibly_stale"]);
+test("toListQuery asks the map for every status unless active-only", () => {
+  assert.deepEqual(toListQuery(DEFAULT_FILTERS, NOW).statuses, ["active", "possibly_stale", "expired", "resolved"]);
   const q = toListQuery({ ...DEFAULT_FILTERS, activeOnly: true, updatedWithinMin: 60, types: ["flooded"] }, NOW);
   assert.deepEqual(q.statuses, ["active"]);
   assert.deepEqual(q.types, ["flooded"]);
@@ -76,6 +76,7 @@ test("toListQuery never asks the map for resolved or expired reports", () => {
 });
 
 test("applyClientFilters: distance, blocked-for vehicle, and locally upserted reports", () => {
+  // Non-active reports stay on the map (faded) unless "active only" is on.
   const near = report({ id: "near" });
   const far = report({ id: "far", latitude: 13.9 });
   const blocked = report({
@@ -85,11 +86,12 @@ test("applyClientFilters: distance, blocked-for vehicle, and locally upserted re
   const stale = report({ id: "stale", stale_at: minutes(-1) });
   const resolved = report({ id: "resolved", resolved_at: minutes(-1), status: "resolved" });
   const me = { latitude: 13.7563, longitude: 100.5018 };
-  const all = [near, far, blocked, stale, resolved];
+  const expired = report({ id: "expired", stale_at: minutes(-10), expires_at: minutes(-1) });
+  const all = [near, far, blocked, stale, resolved, expired];
 
   const ids = (rs: Report[]) => rs.map((r) => r.id).sort();
-  assert.deepEqual(ids(applyClientFilters(all, DEFAULT_FILTERS, me, NOW)), ["blocked", "far", "near", "stale"]);
-  assert.deepEqual(ids(applyClientFilters(all, { ...DEFAULT_FILTERS, nearMe: true, radiusKm: 1 }, me, NOW)), ["blocked", "near", "stale"]);
+  assert.deepEqual(ids(applyClientFilters(all, DEFAULT_FILTERS, me, NOW)), ["blocked", "expired", "far", "near", "resolved", "stale"]);
+  assert.deepEqual(ids(applyClientFilters(all, { ...DEFAULT_FILTERS, nearMe: true, radiusKm: 1 }, me, NOW)), ["blocked", "expired", "near", "resolved", "stale"]);
   assert.deepEqual(ids(applyClientFilters(all, { ...DEFAULT_FILTERS, blockedFor: "sedan" }, me, NOW)), ["blocked"]);
   assert.deepEqual(ids(applyClientFilters(all, { ...DEFAULT_FILTERS, blockedFor: "suv_pickup" }, me, NOW)), []);
   assert.deepEqual(ids(applyClientFilters(all, { ...DEFAULT_FILTERS, activeOnly: true }, me, NOW)), ["blocked", "far", "near"]);

@@ -12,6 +12,7 @@ import { clusterPoints, CLUSTER_MAX_ZOOM } from "@/lib/cluster";
 import { GISTDA_FLOOD_META, ROUTE_RISK_META } from "@/lib/community-meta";
 import { circleRing } from "@/lib/distance";
 import { severityRank } from "@/lib/report-meta";
+import { currentStatus } from "@/lib/report-status";
 import { useNow } from "@/features/common/use-now";
 import { useTranslation } from "@/lib/i18n/locale-context";
 import type { Viewport } from "@/features/reports/use-viewport-reports";
@@ -433,7 +434,7 @@ export const MapView = memo(function MapView({
               latitude={report.latitude}
               longitude={report.longitude}
               anchor="center"
-              style={{ zIndex: selected ? 3 : severityRank(report.severity) >= 3 ? 2 : 1 }}
+              style={{ zIndex: selected ? 4 : currentStatus(report, now) !== "active" ? 0 : severityRank(report.severity) >= 3 ? 2 : 1 }}
               onClick={(e) => {
                 e.originalEvent.stopPropagation();
                 if (!pickMode) onSelectReport(report);

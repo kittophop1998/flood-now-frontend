@@ -3,9 +3,8 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { reportsService } from "@/services/reports-service";
 import { ApiError, isAbortError, isNetworkError } from "@/services/api-client";
-import { toListQuery, type MapFilters } from "@/lib/map-filters";
+import { OPEN_STATUSES, toListQuery, type MapFilters } from "@/lib/map-filters";
 import { readCache, writeCache } from "@/lib/offline-cache";
-import { isOpen } from "@/lib/report-status";
 import { useTranslation } from "@/lib/i18n/locale-context";
 import type { AggregateCell, BoundingBox, Report } from "@/types/report";
 
@@ -95,7 +94,8 @@ export function useViewportReports(viewport: Viewport | null, filters: MapFilter
       try {
         const query = { ...toListQuery(filtersRef.current), bbox: region };
         if (aggregate) {
-          const res = await reportsService.aggregate({ ...query, zoom: vp.zoom }, controller.signal);
+          const statuses = filtersRef.current.activeOnly ? query.statuses : OPEN_STATUSES;
+          const res = await reportsService.aggregate({ ...query, statuses, zoom: vp.zoom }, controller.signal);
           setCells(res.cells);
           setReports([]);
           setHasMore(false);
@@ -150,12 +150,9 @@ export function useViewportReports(viewport: Viewport | null, filters: MapFilter
   useEffect(() => () => abortRef.current?.abort(), []);
 
   // Applies a report returned by a mutation (create/confirm) without a
-  // refetch; reports that are no longer open drop off the map.
+  // refetch. Reports that are no longer open stay on the map (faded).
   const upsertReport = useCallback((updated: Report) => {
-    setReports((prev) => {
-      const without = prev.filter((r) => r.id !== updated.id);
-      return isOpen(updated.status) ? [updated, ...without] : without;
-    });
+    setReports((prev) => [updated, ...prev.filter((r) => r.id !== updated.id)]);
   }, []);
 
   const reload = useCallback(() => load(true), [load]);
