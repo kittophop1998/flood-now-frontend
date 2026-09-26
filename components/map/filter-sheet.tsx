@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, type ReactNode } from "react";
-import { Drawer, DrawerContent, DrawerHeader, DrawerTitle } from "@/components/ui/drawer";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import {
   DEFAULT_FILTERS,
@@ -48,11 +48,11 @@ export function FilterSheet({
   }
 
   return (
-    <Drawer open={open} onOpenChange={onOpenChange}>
-      <DrawerContent className="max-h-[90dvh] sm:mx-auto sm:max-w-lg">
-        <DrawerHeader className="pb-2 text-left">
-          <DrawerTitle className="text-lg font-semibold">{t("filtersTitle")}</DrawerTitle>
-        </DrawerHeader>
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="flex max-h-[85dvh] flex-col gap-0 p-0 sm:max-w-lg">
+        <DialogHeader className="px-4 pt-4 pb-3 pr-12">
+          <DialogTitle className="text-lg font-semibold">{t("filtersTitle")}</DialogTitle>
+        </DialogHeader>
         <div className="flex min-h-0 flex-1 flex-col gap-5 overflow-y-auto px-4 pb-4">
           <Group title={t("filterCategories")}>
             {REPORT_TYPES.map((type) => {
@@ -143,7 +143,7 @@ export function FilterSheet({
             })}
           </Group>
         </div>
-        <div className="grid shrink-0 grid-cols-[auto_1fr] gap-2 border-t px-4 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
+        <div className="grid shrink-0 grid-cols-[auto_1fr] gap-2 border-t px-4 py-3">
           <Button variant="outline" className="h-12 rounded-xl px-4" onClick={() => setDraft(DEFAULT_FILTERS)}>
             {t("filtersReset")}
           </Button>
@@ -157,8 +157,8 @@ export function FilterSheet({
             {t("filtersApply")}
           </Button>
         </div>
-      </DrawerContent>
-    </Drawer>
+      </DialogContent>
+    </Dialog>
   );
 }
 

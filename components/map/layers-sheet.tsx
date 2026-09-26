@@ -2,7 +2,7 @@
 
 import type { ReactNode } from "react";
 import { Loader2, MapPin, UsersRound } from "lucide-react";
-import { Drawer, DrawerContent, DrawerHeader, DrawerTitle } from "@/components/ui/drawer";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { FloodLayerStatusLine, FloodSwatch } from "@/components/map/official-flood-legend";
@@ -75,12 +75,12 @@ export function LayersSheet({
 }) {
   const { t } = useTranslation();
   return (
-    <Drawer open={open} onOpenChange={onOpenChange}>
-      <DrawerContent className="max-h-[85dvh] sm:mx-auto sm:max-w-lg">
-        <DrawerHeader className="pb-2 text-left">
-          <DrawerTitle className="text-lg font-semibold">{t("layersTitle")}</DrawerTitle>
-        </DrawerHeader>
-        <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto px-4 pb-[max(1rem,env(safe-area-inset-bottom))]">
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="flex max-h-[85dvh] flex-col gap-0 p-0 sm:max-w-lg">
+        <DialogHeader className="px-4 pt-4 pb-3 pr-12">
+          <DialogTitle className="text-lg font-semibold">{t("layersTitle")}</DialogTitle>
+        </DialogHeader>
+        <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto px-4 pb-4">
           <section className="flex flex-col gap-1.5" aria-labelledby="layer-sec-reports">
             <h3 id="layer-sec-reports" className="text-xs font-semibold tracking-wide text-muted-foreground">
               {t("layerSectionReports")}
@@ -232,7 +232,7 @@ export function LayersSheet({
           )}
           <p className="text-xs text-muted-foreground">{t("layersNote")}</p>
         </div>
-      </DrawerContent>
-    </Drawer>
+      </DialogContent>
+    </Dialog>
   );
 }
