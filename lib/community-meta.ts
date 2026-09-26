@@ -146,3 +146,12 @@ export const ANNOUNCEMENT_TYPE_META: Record<AnnouncementType, LucideIcon> = {
 // Official announcements are always marked with this, community reports
 // never are, so the two can't be confused.
 export const OFFICIAL_ICON = ShieldCheck;
+
+// Official GISTDA flood areas: a translucent sky-blue fill that stays behind
+// every marker (community reports always read as the stronger signal).
+export const GISTDA_FLOOD_META = {
+  icon: Waves,
+  fill: "#0ea5e9",
+  fillOpacity: 0.25,
+  line: "#0369a1",
+} as const;

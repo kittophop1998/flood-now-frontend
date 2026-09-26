@@ -5,6 +5,7 @@ import { Clock, ExternalLink, MapPin, Navigation, Phone, X } from "lucide-react"
 import { Button } from "@/components/ui/button";
 import { BottomSheet, type SheetSnap } from "@/components/ui/bottom-sheet";
 import { OfficialBadge, PlaceStatusBadge } from "@/components/community/badges";
+import { FloodSwatch } from "@/components/map/official-flood-legend";
 import { SeverityBadge } from "@/components/report/report-badges";
 import { useNow } from "@/features/common/use-now";
 import { ANNOUNCEMENT_TYPE_META, IMPORTANT_PLACE_META } from "@/lib/community-meta";
@@ -12,7 +13,7 @@ import { directionsUrl } from "@/lib/directions";
 import { formatDistance } from "@/lib/distance";
 import { formatClockTime, formatFreshness } from "@/lib/freshness";
 import { useTranslation } from "@/lib/i18n/locale-context";
-import type { Announcement, ImportantPlace } from "@/types/community";
+import type { Announcement, FloodAreaProperties, FloodLayer, ImportantPlace } from "@/types/community";
 
 function DirectionsLink({ latitude, longitude }: { latitude: number; longitude: number }) {
   const { t } = useTranslation();
@@ -204,6 +205,98 @@ export function AnnouncementSheet({
         )}
         {a.latitude != null && a.longitude != null && <DirectionsLink latitude={a.latitude} longitude={a.longitude} />}
         <p className="text-xs text-muted-foreground">{t("announcementDisclaimer")}</p>
+      </div>
+    </BottomSheet>
+  );
+}
+
+// Detail sheet for one official GISTDA flood area. It is area-level
+// satellite data, so it's labelled official, carries its data period and
+// times, and has none of the community confirmation controls.
+export function GistdaFloodSheet({
+  area,
+  layer,
+  stale,
+  onClose,
+  onVisibleHeightChange,
+}: {
+  area: FloodAreaProperties;
+  layer: FloodLayer;
+  stale: boolean;
+  onClose: () => void;
+  onVisibleHeightChange?: (px: number) => void;
+}) {
+  const { t, locale } = useTranslation();
+  const now = useNow();
+  const [snap, setSnap] = useState<SheetSnap>("peek");
+  const headingId = "gistda-flood-title";
+  const observedAt = area.observed_at ?? layer.observed_at;
+
+  const peek = (
+    <div className="flex flex-col gap-3 px-4 pb-4">
+      <div className="flex items-start gap-3">
+        <FloodSwatch className="size-10 rounded-xl [&>svg]:size-5" />
+        <div className="min-w-0 flex-1">
+          <h2 id={headingId} tabIndex={-1} className="text-base leading-snug font-semibold outline-none">
+            {t("gistdaAreaTitle")}
+          </h2>
+          <div className="mt-1 flex flex-wrap items-center gap-1.5">
+            <OfficialBadge />
+            <span className="text-xs font-medium">{t("gistdaFrom")}</span>
+          </div>
+          <p className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-xs text-muted-foreground">
+            <span>{t(`gistdaPeriodLong.${layer.period}`)}</span>
+            <span className="inline-flex items-center gap-1">
+              <Clock className="size-3.5" aria-hidden />
+              {t("updatedAgo", { ago: formatFreshness(layer.fetched_at, t, now) })}
+            </span>
+            {stale && (
+              <span className="rounded-full border border-amber-300 bg-amber-50 px-1.5 font-semibold text-amber-900">{t("gistdaStaleBadge")}</span>
+            )}
+          </p>
+        </div>
+        <Button variant="ghost" size="icon" className="-mt-1 -mr-2 size-11 shrink-0 rounded-full" onClick={onClose} aria-label={t("close")}>
+          <X className="size-5" />
+        </Button>
+      </div>
+      <p className="text-xs text-muted-foreground">{t("gistdaDisclaimer")}</p>
+      <Button variant="outline" className="h-11 rounded-xl text-sm" onClick={() => setSnap(snap === "peek" ? "full" : "peek")} aria-expanded={snap !== "peek"}>
+        {snap === "peek" ? t("viewDetails") : t("collapseSheet")}
+      </Button>
+    </div>
+  );
+
+  return (
+    <BottomSheet
+      open
+      snap={snap}
+      onSnapChange={setSnap}
+      onClose={onClose}
+      labelledBy={headingId}
+      peek={peek}
+      expandLabel={t("expandSheet")}
+      collapseLabel={t("collapseSheet")}
+      onVisibleHeightChange={onVisibleHeightChange}
+    >
+      <div className="flex flex-col gap-4 border-t px-4 pt-4">
+        <dl className="grid grid-cols-[auto_1fr] gap-x-5 gap-y-2.5 text-sm">
+          <Row label={t("gistdaSource")}>{t("gistdaSourceName")}</Row>
+          <Row label={t("gistdaPeriodRow")}>{t(`gistdaPeriodLong.${layer.period}`)}</Row>
+          {observedAt && <Row label={t("gistdaObserved")}>{formatClockTime(observedAt, locale, now)}</Row>}
+          <Row label={t("gistdaFetched")}>{formatClockTime(layer.fetched_at, locale, now)}</Row>
+        </dl>
+        {layer.source_url && (
+          <a
+            href={layer.source_url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex h-11 items-center justify-center gap-1.5 rounded-xl border bg-background text-sm font-medium hover:bg-muted focus-visible:outline-2 focus-visible:outline-ring"
+          >
+            <ExternalLink className="size-4" aria-hidden />
+            {t("gistdaOpenSource")}
+          </a>
+        )}
+        <p className="text-xs text-muted-foreground">{t("gistdaDisclaimerRoads")}</p>
       </div>
     </BottomSheet>
   );

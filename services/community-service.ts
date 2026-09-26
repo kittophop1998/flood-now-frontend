@@ -4,6 +4,8 @@ import type { BoundingBox, Vehicle } from "@/types/report";
 import type {
   Announcement,
   CreateSosInput,
+  FloodLayer,
+  GistdaPeriod,
   HelperInput,
   HelperProfile,
   ImportantPlace,
@@ -79,6 +81,13 @@ export const announcementsService = {
       )
       .then((r) => r.announcements),
   get: (id: string) => apiClient.get<Announcement>(`/api/v1/announcements/${id}`),
+};
+
+// Official GISTDA flood areas, served (cached) by the API — the browser never
+// talks to GISTDA or sees its key.
+export const officialFloodService = {
+  get: (query: { period: GistdaPeriod; bbox: BoundingBox }, signal?: AbortSignal) =>
+    apiClient.get<FloodLayer>(`/api/v1/official/gistda/flood${toQuery({ period: query.period, ...bboxParams(query.bbox) })}`, signal),
 };
 
 export const configService = {

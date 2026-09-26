@@ -1,30 +1,77 @@
 "use client";
 
+import type { ReactNode } from "react";
+import { Loader2, MapPin, UsersRound } from "lucide-react";
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle } from "@/components/ui/drawer";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
-import { IMPORTANT_PLACE_META } from "@/lib/community-meta";
+import { FloodLayerStatusLine, FloodSwatch } from "@/components/map/official-flood-legend";
+import { IMPORTANT_PLACE_META, OFFICIAL_ICON } from "@/lib/community-meta";
 import { useTranslation } from "@/lib/i18n/locale-context";
 import { cn } from "@/lib/utils";
 import type { LayerFilters } from "@/features/layers/use-viewport-layers";
-import { IMPORTANT_PLACE_CATEGORIES, IMPORTANT_PLACE_STATUSES } from "@/types/community";
+import type { FloodLayerStatus } from "@/features/layers/use-gistda-flood";
+import { GISTDA_PERIODS, IMPORTANT_PLACE_CATEGORIES, IMPORTANT_PLACE_STATUSES, type FloodLayer } from "@/types/community";
 
 function toggle<T>(list: T[], v: T): T[] {
   return list.includes(v) ? list.filter((x) => x !== v) : [...list, v];
 }
 
-// Map layers beyond community reports: official announcements and
-// important places (filterable by category/status). Changes apply live.
+export interface GistdaLayerState {
+  // The API has the layer configured; otherwise the row isn't shown.
+  available: boolean;
+  layer: FloodLayer | null;
+  status: FloodLayerStatus;
+  stale: boolean;
+  onRetry: () => void;
+}
+
+function LayerRow({
+  id,
+  icon,
+  label,
+  checked,
+  onCheckedChange,
+  trailing,
+}: {
+  id: string;
+  icon: ReactNode;
+  label: string;
+  checked: boolean;
+  onCheckedChange: (v: boolean) => void;
+  trailing?: ReactNode;
+}) {
+  return (
+    <div className="flex min-h-13 items-center gap-3">
+      {icon}
+      <Label htmlFor={id} className="min-w-0 flex-1 font-medium">
+        {label}
+      </Label>
+      {trailing}
+      <Switch id={id} checked={checked} onCheckedChange={onCheckedChange} />
+    </div>
+  );
+}
+
+function RowIcon({ children, className }: { children: ReactNode; className?: string }) {
+  return <span className={cn("flex size-8 shrink-0 items-center justify-center rounded-lg [&>svg]:size-4", className)}>{children}</span>;
+}
+
+// Map layers, grouped by where the data comes from: community reports,
+// official data (GISTDA flood areas, announcements) and important places.
+// Changes apply live.
 export function LayersSheet({
   open,
   onOpenChange,
   layers,
   onChange,
+  gistda,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   layers: LayerFilters;
   onChange: (next: LayerFilters) => void;
+  gistda: GistdaLayerState;
 }) {
   const { t } = useTranslation();
   return (
@@ -34,20 +81,103 @@ export function LayersSheet({
           <DrawerTitle className="text-lg font-semibold">{t("layersTitle")}</DrawerTitle>
         </DrawerHeader>
         <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto px-4 pb-[max(1rem,env(safe-area-inset-bottom))]">
-          <div className="flex flex-col divide-y rounded-2xl border px-4">
-            <div className="flex min-h-12 items-center justify-between gap-3">
-              <Label htmlFor="sheet-layer-ann" className="font-medium">
-                {t("layerAnnouncementsToggle")}
-              </Label>
-              <Switch id="sheet-layer-ann" checked={layers.announcements} onCheckedChange={(v) => onChange({ ...layers, announcements: v })} />
+          <section className="flex flex-col gap-1.5" aria-labelledby="layer-sec-reports">
+            <h3 id="layer-sec-reports" className="text-xs font-semibold tracking-wide text-muted-foreground">
+              {t("layerSectionReports")}
+            </h3>
+            <div className="rounded-2xl border px-3">
+              <LayerRow
+                id="sheet-layer-reports"
+                icon={
+                  <RowIcon className="bg-muted text-slate-700">
+                    <UsersRound />
+                  </RowIcon>
+                }
+                label={t("layerReportsToggle")}
+                checked={layers.reports}
+                onCheckedChange={(v) => onChange({ ...layers, reports: v })}
+              />
             </div>
-            <div className="flex min-h-12 items-center justify-between gap-3">
-              <Label htmlFor="sheet-layer-places" className="font-medium">
-                {t("layerPlacesToggle")}
-              </Label>
-              <Switch id="sheet-layer-places" checked={layers.places} onCheckedChange={(v) => onChange({ ...layers, places: v })} />
+          </section>
+
+          <section className="flex flex-col gap-1.5" aria-labelledby="layer-sec-official">
+            <h3 id="layer-sec-official" className="text-xs font-semibold tracking-wide text-muted-foreground">
+              {t("layerSectionOfficial")}
+            </h3>
+            <div className="flex flex-col divide-y rounded-2xl border px-3">
+              {gistda.available && (
+                <div className="flex flex-col pb-1">
+                  <LayerRow
+                    id="sheet-layer-gistda"
+                    icon={<FloodSwatch className="size-8" />}
+                    label={t("layerGistdaToggle")}
+                    checked={layers.gistdaFlood}
+                    onCheckedChange={(v) => onChange({ ...layers, gistdaFlood: v })}
+                    trailing={
+                      layers.gistdaFlood && gistda.status === "loading" ? (
+                        <Loader2 className="size-4 shrink-0 animate-spin text-primary" aria-label={t("gistdaLoading")} role="status" />
+                      ) : undefined
+                    }
+                  />
+                  {layers.gistdaFlood && (
+                    <div className="flex flex-col gap-2 pb-2 pl-11">
+                      <div role="radiogroup" aria-label={t("gistdaPeriodLabel")} className="grid grid-cols-4 gap-1 rounded-xl bg-muted p-1">
+                        {GISTDA_PERIODS.map((p) => {
+                          const on = layers.gistdaPeriod === p;
+                          return (
+                            <button
+                              key={p}
+                              type="button"
+                              role="radio"
+                              aria-checked={on}
+                              onClick={() => onChange({ ...layers, gistdaPeriod: p })}
+                              className={cn(
+                                "min-h-11 rounded-lg px-1 text-xs font-semibold whitespace-nowrap transition-colors focus-visible:outline-2 focus-visible:outline-ring",
+                                on ? "bg-background text-primary shadow-sm" : "text-muted-foreground hover:text-foreground",
+                              )}
+                            >
+                              {t(`gistdaPeriod.${p}`)}
+                            </button>
+                          );
+                        })}
+                      </div>
+                      <FloodLayerStatusLine layer={gistda.layer} status={gistda.status} stale={gistda.stale} onRetry={gistda.onRetry} />
+                    </div>
+                  )}
+                </div>
+              )}
+              <LayerRow
+                id="sheet-layer-ann"
+                icon={
+                  <RowIcon className="bg-indigo-700 text-white">
+                    <OFFICIAL_ICON />
+                  </RowIcon>
+                }
+                label={t("layerAnnouncementsToggle")}
+                checked={layers.announcements}
+                onCheckedChange={(v) => onChange({ ...layers, announcements: v })}
+              />
             </div>
-          </div>
+          </section>
+
+          <section className="flex flex-col gap-1.5" aria-labelledby="layer-sec-places">
+            <h3 id="layer-sec-places" className="text-xs font-semibold tracking-wide text-muted-foreground">
+              {t("layerSectionPlaces")}
+            </h3>
+            <div className="rounded-2xl border px-3">
+              <LayerRow
+                id="sheet-layer-places"
+                icon={
+                  <RowIcon className="bg-muted text-slate-700">
+                    <MapPin />
+                  </RowIcon>
+                }
+                label={t("layerPlacesToggle")}
+                checked={layers.places}
+                onCheckedChange={(v) => onChange({ ...layers, places: v })}
+              />
+            </div>
+          </section>
 
           {layers.places && (
             <>

@@ -1,7 +1,7 @@
 "use client";
 
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
-import Map, { AttributionControl, Layer, Marker, NavigationControl, Source, type MapRef } from "react-map-gl/maplibre";
+import Map, { AttributionControl, Layer, Marker, NavigationControl, Source, type MapLayerMouseEvent, type MapRef } from "react-map-gl/maplibre";
 import { setWorkerUrl } from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
 import { ClusterMarker, ReportMarker } from "@/components/map/report-marker";
@@ -9,14 +9,14 @@ import { AnnouncementMarker, ImportantPlaceMarker, ZoneMarker } from "@/componen
 import { LocationDot } from "@/components/map/location-dot";
 import { CenterPin } from "@/components/map/center-pin";
 import { clusterPoints, CLUSTER_MAX_ZOOM } from "@/lib/cluster";
-import { ROUTE_RISK_META } from "@/lib/community-meta";
+import { GISTDA_FLOOD_META, ROUTE_RISK_META } from "@/lib/community-meta";
 import { circleRing } from "@/lib/distance";
 import { severityRank } from "@/lib/report-meta";
 import { useNow } from "@/features/common/use-now";
 import { useTranslation } from "@/lib/i18n/locale-context";
 import type { Viewport } from "@/features/reports/use-viewport-reports";
 import type { AggregateCell, Report } from "@/types/report";
-import type { Announcement, EvaluatedRoute, ImportantPlace } from "@/types/community";
+import type { Announcement, EvaluatedRoute, FloodAreaCollection, ImportantPlace } from "@/types/community";
 
 const OPENFREEMAP_STYLE = "https://tiles.openfreemap.org/styles/liberty";
 
@@ -42,7 +42,13 @@ export interface RouteOverlay {
   selected: number;
 }
 
-export type LayerSelection = { kind: "place"; id: string } | { kind: "announcement"; id: string } | null;
+export type LayerSelection =
+  | { kind: "place"; id: string }
+  | { kind: "announcement"; id: string }
+  | { kind: "flood"; ref: number }
+  | null;
+
+const FLOOD_FILL_LAYER = "gistda-flood-fill";
 
 export interface MapViewProps {
   initialCenter: LatLng;
@@ -50,7 +56,9 @@ export interface MapViewProps {
   reports: Report[];
   selectedReportId: string | null;
   onSelectReport: (report: Report) => void;
-  onMapClick?: () => void;
+  // A tap on the map itself (not a marker); floodRef is the GISTDA flood
+  // area under the tap, if any.
+  onMapClick?: (floodRef: number | null) => void;
   userLocation: LatLng | null;
   pickMode: boolean;
   onViewportChange: (viewport: Viewport) => void;
@@ -61,6 +69,9 @@ export interface MapViewProps {
   cells: AggregateCell[];
   places: ImportantPlace[];
   announcements: Announcement[];
+  // Official GISTDA flood areas, drawn under every marker; null = layer off
+  // (pass an empty collection while it loads so the layer stays mounted).
+  floodAreas: FloodAreaCollection | null;
   selectedLayer: LayerSelection;
   onSelectPlace: (place: ImportantPlace) => void;
   onSelectAnnouncement: (a: Announcement) => void;
@@ -83,6 +94,7 @@ export const MapView = memo(function MapView({
   cells,
   places,
   announcements,
+  floodAreas,
   selectedLayer,
   onSelectPlace,
   onSelectAnnouncement,
@@ -92,6 +104,9 @@ export const MapView = memo(function MapView({
   const mapRef = useRef<MapRef | null>(null);
   const [zoom, setZoom] = useState(14);
   const now = useNow(60_000);
+  // First label layer of the base style: the flood fill goes just below it,
+  // so place and road names stay readable on top of the water.
+  const [labelLayerId, setLabelLayerId] = useState<string | undefined>(undefined);
 
   // Cap the padding so a fully expanded sheet doesn't squeeze the camera
   // center into a sliver at the top.
@@ -211,6 +226,15 @@ export const MapView = memo(function MapView({
     };
   }, [route]);
 
+  const selectedFloodRef = selectedLayer?.kind === "flood" ? selectedLayer.ref : -1;
+  const handleClick = useCallback(
+    (e: MapLayerMouseEvent) => {
+      const ref = e.features?.find((f) => f.layer.id === FLOOD_FILL_LAYER)?.properties?.ref;
+      onMapClick?.(typeof ref === "number" && !pickMode ? ref : null);
+    },
+    [onMapClick, pickMode],
+  );
+
   return (
     <div className="relative h-full w-full" role="region" aria-label={t("mapLabel")}>
       <Map
@@ -220,10 +244,12 @@ export const MapView = memo(function MapView({
           // Compact attribution starts expanded over the map; keep it behind
           // its (i) button until the user asks.
           e.target.getContainer().querySelector(".maplibregl-ctrl-attrib")?.classList.remove("maplibregl-compact-show");
+          setLabelLayerId(e.target.getStyle().layers.find((l) => l.type === "symbol")?.id);
           emitViewport();
         }}
         onMoveEnd={emitViewport}
-        onClick={onMapClick}
+        onClick={handleClick}
+        interactiveLayerIds={floodAreas && !pickMode ? [FLOOD_FILL_LAYER] : undefined}
         mapStyle={OPENFREEMAP_STYLE}
         style={{ width: "100%", height: "100%" }}
         attributionControl={false}
@@ -250,6 +276,29 @@ export const MapView = memo(function MapView({
                   0.55, "rgba(245,158,11,0.75)",
                   0.85, "rgba(220,38,38,0.85)",
                 ],
+              }}
+            />
+          </Source>
+        )}
+
+        {/* Mounted once while the layer is on; new periods/regions only swap
+            its data, never tear the layer down. */}
+        {floodAreas && (
+          <Source id="gistda-flood" type="geojson" data={floodAreas} attribution="GISTDA">
+            <Layer
+              id={FLOOD_FILL_LAYER}
+              type="fill"
+              beforeId={labelLayerId}
+              paint={{ "fill-color": GISTDA_FLOOD_META.fill, "fill-opacity": GISTDA_FLOOD_META.fillOpacity }}
+            />
+            <Layer
+              id="gistda-flood-line"
+              type="line"
+              beforeId={labelLayerId}
+              paint={{
+                "line-color": GISTDA_FLOOD_META.line,
+                "line-opacity": ["case", ["==", ["get", "ref"], selectedFloodRef], 1, 0.45],
+                "line-width": ["case", ["==", ["get", "ref"], selectedFloodRef], 2.5, 0.8],
               }}
             />
           </Source>

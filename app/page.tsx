@@ -15,7 +15,8 @@ import { LocationPicker } from "@/components/map/location-picker";
 import { RouteSummary } from "@/components/map/route-summary";
 import { ReportForm, type ReportDraft } from "@/components/report/report-form";
 import { ReportDetailSheet } from "@/components/report/report-detail";
-import { AnnouncementSheet, ImportantPlaceSheet } from "@/components/layers/layer-detail-sheet";
+import { AnnouncementSheet, GistdaFloodSheet, ImportantPlaceSheet } from "@/components/layers/layer-detail-sheet";
+import { OfficialFloodLegend } from "@/components/map/official-flood-legend";
 import { NearbyView } from "@/components/views/nearby-view";
 import { AlertsView } from "@/components/views/alerts-view";
 import { MoreView, type MoreScreen } from "@/components/views/more-view";
@@ -43,13 +44,15 @@ import { useSavedPlaces } from "@/features/places/use-saved-places";
 import { useRouteEvaluation } from "@/features/route/use-route-evaluation";
 import { useSos } from "@/features/sos/use-sos";
 import { DEFAULT_LAYERS, useViewportLayers, type LayerFilters } from "@/features/layers/use-viewport-layers";
+import { useGistdaFlood } from "@/features/layers/use-gistda-flood";
+import { EMPTY_FLOOD_AREAS } from "@/lib/official-flood";
 import { reportsService } from "@/services/reports-service";
 import { setConfirmation } from "@/lib/confirmed-reports";
 import { newClientId } from "@/lib/outbox";
 import { DEFAULT_FILTERS, applyClientFilters, type MapFilters } from "@/lib/map-filters";
 import { useTranslation } from "@/lib/i18n/locale-context";
 import type { CreateReportInput, Place, Report } from "@/types/report";
-import type { Announcement, ImportantPlace, LatLng, RouteEvaluation, SavedPlace } from "@/types/community";
+import type { Announcement, FloodAreaProperties, ImportantPlace, LatLng, RouteEvaluation, SavedPlace } from "@/types/community";
 
 const MapView = dynamic(() => import("@/components/map/map-view").then((m) => m.MapView), {
   ssr: false,
@@ -64,7 +67,12 @@ type Mode =
   // screen stays mounted but hidden and gets the point back via onPick.
   | { kind: "pickingFor"; title: string; onPick: (point: LatLng) => void };
 
-type LayerSelection = { kind: "place"; place: ImportantPlace } | { kind: "announcement"; announcement: Announcement } | null;
+type LayerSelection =
+  | { kind: "place"; place: ImportantPlace }
+  | { kind: "announcement"; announcement: Announcement }
+  // A GISTDA flood area, tied to the snapshot it was tapped in.
+  | { kind: "flood"; area: FloodAreaProperties; fetchedAt: string }
+  | null;
 
 const RADIUS_ZOOM: Record<number, number> = { 1: 15, 3: 13, 5: 12, 10: 11 };
 const WATCH_ZOOM: Record<number, number> = { 1000: 14, 3000: 13, 5000: 12 };
@@ -128,6 +136,10 @@ export default function HomePage() {
   const { reports, cells, mode: mapMode, staleSince, status, refreshing, hasMore, errorMessage, reload, upsertReport } =
     useViewportReports(viewport, filters);
   const layerData = useViewportLayers(viewport, layers);
+  // Official GISTDA flood areas: only when the API has it configured and the
+  // user switched it on — nothing is requested otherwise.
+  const gistdaOn = config.gistda_flood && layers.gistdaFlood;
+  const gistda = useGistdaFlood(viewport, gistdaOn, layers.gistdaPeriod);
   const outbox = useOutbox(upsertReport);
 
   const userLocation = useMemo(
@@ -311,7 +323,7 @@ export default function HomePage() {
     if (next === "more") setMoreScreen("menu");
   }
 
-  function openLayerItem(selection: NonNullable<LayerSelection>) {
+  function openLayerItem(selection: Exclude<LayerSelection, { kind: "flood" } | null>) {
     closeReport();
     setTab("map");
     setLayerSelection(selection);
@@ -346,10 +358,13 @@ export default function HomePage() {
   const picking = mode.kind === "picking" || mode.kind === "pickingFor";
   const onMap = tab === "map";
   const sheetOpen = onMap && !picking && selectedReport != null;
-  const layerSheetOpen = onMap && !picking && !sheetOpen && layerSelection != null;
+  // A flood selection lapses with its snapshot (layer off, other period, refetched).
+  const floodSelection =
+    layerSelection?.kind === "flood" && gistda.layer?.fetched_at === layerSelection.fetchedAt ? layerSelection : null;
+  const layerSheetOpen = onMap && !picking && !sheetOpen && layerSelection != null && (layerSelection.kind !== "flood" || floodSelection != null);
   const routeCardOpen = onMap && !picking && !sheetOpen && !layerSheetOpen && routeOverlay != null;
   const filtersActive = JSON.stringify(filters) !== JSON.stringify(DEFAULT_FILTERS);
-  const layersActive = (layers.places ? 1 : 0) + (layers.announcements ? 1 : 0);
+  const layersActive = (layers.places ? 1 : 0) + (layers.announcements ? 1 : 0) + (gistdaOn ? 1 : 0);
   const outboxCount = outbox.pendingCount + outbox.failedCount;
   // On desktop the sheet floats at the side, so it doesn't cover the map bottom.
   const bottomInset = isDesktop
@@ -400,25 +415,31 @@ export default function HomePage() {
         <MapView
           initialCenter={DEFAULT_CENTER}
           focus={focus}
-          reports={visibleReports}
+          reports={layers.reports ? visibleReports : visibleReports.filter((r) => r.id === selectedReport?.id)}
           selectedReportId={sheetOpen ? selectedReport.id : null}
           onSelectReport={openReport}
-          onMapClick={
-            sheetOpen ? closeReport : layerSheetOpen ? () => setLayerSelection(null) : undefined
-          }
+          onMapClick={(floodRef) => {
+            if (sheetOpen) return closeReport();
+            if (layerSheetOpen) return setLayerSelection(null);
+            const area = floodRef != null && gistda.layer?.areas.features.find((f) => f.properties.ref === floodRef)?.properties;
+            if (area && gistda.layer) setLayerSelection({ kind: "flood", area, fetchedAt: gistda.layer.fetched_at });
+          }}
           userLocation={userLocation}
           pickMode={picking}
           onViewportChange={setViewport}
           bottomInset={bottomInset}
-          cells={cells}
+          cells={layers.reports ? cells : []}
           places={layerData.places}
           announcements={layerData.announcements}
+          floodAreas={gistdaOn ? (gistda.layer?.areas ?? EMPTY_FLOOD_AREAS) : null}
           selectedLayer={
             layerSelection?.kind === "place"
               ? { kind: "place", id: layerSelection.place.id }
               : layerSelection?.kind === "announcement"
                 ? { kind: "announcement", id: layerSelection.announcement.id }
-                : null
+                : floodSelection
+                  ? { kind: "flood", ref: floodSelection.area.ref }
+                  : null
           }
           onSelectPlace={(place) => openLayerItem({ kind: "place", place })}
           onSelectAnnouncement={(announcement) => openLayerItem({ kind: "announcement", announcement })}
@@ -455,6 +476,17 @@ export default function HomePage() {
               SOS
               {sos.active && <span className="rounded-full bg-white/25 px-1.5 text-[11px] font-semibold">{t(`sosStatus.${sos.active.status}`)}</span>}
             </button>
+            {gistdaOn && (
+              <OfficialFloodLegend
+                className="absolute bottom-[calc(var(--map-bottom-inset)+6.75rem)] left-3 z-10 transition-[bottom] duration-300 sm:bottom-[9rem]"
+                period={layers.gistdaPeriod}
+                layer={gistda.layer}
+                status={gistda.status}
+                stale={gistda.stale}
+                onOpenLayers={() => setLayersSheetOpen(true)}
+                onRetry={gistda.retry}
+              />
+            )}
           </>
         )}
       </div>
@@ -498,14 +530,14 @@ export default function HomePage() {
                 {geo.status === "denied" ? t("locationDenied") : t("locationUnavailable")}
               </MapNotice>
             )}
-            {status === "ready" && hasMore && (
+            {layers.reports && status === "ready" && hasMore && (
               <MapNotice icon={<ZoomIn />}>{t("zoomInForMore")}</MapNotice>
             )}
-            {status === "ready" && mapMode === "aggregate" && cells.length > 0 && !sheetOpen && (
+            {layers.reports && status === "ready" && mapMode === "aggregate" && cells.length > 0 && !sheetOpen && (
               <MapNotice icon={<Layers />}>{t("zonesNotice")}</MapNotice>
             )}
             {layerData.placesStatus === "zoom" && <MapNotice icon={<ZoomIn />}>{t("placesZoomIn")}</MapNotice>}
-            {status === "ready" && !refreshing && visibleReports.length === 0 && cells.length === 0 && !sheetOpen && !layerSheetOpen && (
+            {layers.reports && status === "ready" && !refreshing && visibleReports.length === 0 && cells.length === 0 && !sheetOpen && !layerSheetOpen && (
               <MapNotice
                 icon={<SearchX />}
                 action={filtersActive ? { label: t("clearFilters"), onClick: () => setFilters(DEFAULT_FILTERS) } : undefined}
@@ -545,6 +577,16 @@ export default function HomePage() {
         <AnnouncementSheet
           key={layerSelection.announcement.id}
           announcement={layerSelection.announcement}
+          onClose={() => setLayerSelection(null)}
+          onVisibleHeightChange={setSheetHeight}
+        />
+      )}
+      {layerSheetOpen && floodSelection && gistda.layer && (
+        <GistdaFloodSheet
+          key={`${floodSelection.fetchedAt}:${floodSelection.area.ref}`}
+          area={floodSelection.area}
+          layer={gistda.layer}
+          stale={gistda.stale}
           onClose={() => setLayerSelection(null)}
           onVisibleHeightChange={setSheetHeight}
         />
@@ -691,7 +733,13 @@ export default function HomePage() {
         canFilterNearMe={userLocation != null}
       />
       <InstallPrompt />
-      <LayersSheet open={layersSheetOpen} onOpenChange={setLayersSheetOpen} layers={layers} onChange={setLayers} />
+      <LayersSheet
+        open={layersSheetOpen}
+        onOpenChange={setLayersSheetOpen}
+        layers={layers}
+        onChange={setLayers}
+        gistda={{ available: config.gistda_flood, layer: gistda.layer, status: gistda.status, stale: gistda.stale, onRetry: gistda.retry }}
+      />
 
       <Drawer open={mode.kind === "creating"} onOpenChange={(open) => !open && cancelReport()}>
         <DrawerContent className="h-[94dvh] max-h-[94dvh] sm:mx-auto sm:max-w-xl">

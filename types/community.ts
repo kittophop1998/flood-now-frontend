@@ -295,4 +295,39 @@ export interface DonationConfig {
 
 export interface PublicConfig {
   donation: DonationConfig | null;
+  // True when the official GISTDA flood layer is configured on the API.
+  gistda_flood: boolean;
+}
+
+// --- Official GISTDA flood layer (GET /official/gistda/flood) ---
+
+export const GISTDA_PERIODS = ["1d", "3d", "7d", "30d"] as const;
+export type GistdaPeriod = (typeof GISTDA_PERIODS)[number];
+
+export interface FloodAreaProperties {
+  // Index of the area in the server's snapshot, stable while fetched_at is.
+  ref: number;
+  id?: string;
+  observed_at?: string;
+}
+
+export interface FloodAreaCollection {
+  type: "FeatureCollection";
+  features: {
+    type: "Feature";
+    geometry: { type: "MultiPolygon"; coordinates: [number, number][][][] };
+    properties: FloodAreaProperties;
+  }[];
+}
+
+export interface FloodLayer {
+  source: "GISTDA";
+  period: GistdaPeriod;
+  observed_at: string | null;
+  fetched_at: string;
+  // The provider was unreachable and this is the server's last good copy.
+  stale: boolean;
+  source_url: string;
+  has_more: boolean;
+  areas: FloodAreaCollection;
 }

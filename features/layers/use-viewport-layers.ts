@@ -5,7 +5,8 @@ import { announcementsService, importantPlacesService } from "@/services/communi
 import { isAbortError } from "@/services/api-client";
 import { readCache, writeCache } from "@/lib/offline-cache";
 import type { Viewport } from "@/features/reports/use-viewport-reports";
-import type { Announcement, ImportantPlace, ImportantPlaceCategory, ImportantPlaceStatus } from "@/types/community";
+import { DEFAULT_GISTDA_PERIOD } from "@/lib/official-flood";
+import type { Announcement, GistdaPeriod, ImportantPlace, ImportantPlaceCategory, ImportantPlaceStatus } from "@/types/community";
 
 const DEBOUNCE_MS = 400;
 // The places layer is detailed; below this zoom a viewport can cover a whole
@@ -14,13 +15,26 @@ export const PLACES_MIN_ZOOM = 10;
 const PLACES_CACHE_KEY = "important-places";
 
 export interface LayerFilters {
+  // Community report markers/zones (data keeps loading; only drawing stops).
+  reports: boolean;
   places: boolean;
   announcements: boolean;
   placeCategories: ImportantPlaceCategory[];
   placeStatuses: ImportantPlaceStatus[];
+  // Official GISTDA flood areas (features/layers/use-gistda-flood.ts).
+  gistdaFlood: boolean;
+  gistdaPeriod: GistdaPeriod;
 }
 
-export const DEFAULT_LAYERS: LayerFilters = { places: false, announcements: true, placeCategories: [], placeStatuses: [] };
+export const DEFAULT_LAYERS: LayerFilters = {
+  reports: true,
+  places: false,
+  announcements: true,
+  placeCategories: [],
+  placeStatuses: [],
+  gistdaFlood: false,
+  gistdaPeriod: DEFAULT_GISTDA_PERIOD,
+};
 
 // Map overlay data (important places, official announcements) for the
 // current viewport — only for layers that are switched on, debounced, with
