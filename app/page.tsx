@@ -707,6 +707,9 @@ export default function HomePage() {
             setLayers((l) => ({ ...l, places: true }));
             openLayerItem({ kind: "place", place });
           }}
+          onChanged={layerData.reloadPlaces}
+          onUseMyLocation={myLocation}
+          onPick={requestPick}
           onBack={back}
           hidden={moreHidden}
         />

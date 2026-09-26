@@ -4,7 +4,7 @@ import { useState, type ReactNode } from "react";
 import { Clock, ExternalLink, MapPin, Navigation, Phone, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { BottomSheet, type SheetSnap } from "@/components/ui/bottom-sheet";
-import { OfficialBadge, PlaceStatusBadge } from "@/components/community/badges";
+import { OfficialBadge, PlaceStatusBadge, UserAddedBadge } from "@/components/community/badges";
 import { FloodSwatch } from "@/components/map/official-flood-legend";
 import { SeverityBadge } from "@/components/report/report-badges";
 import { useNow } from "@/features/common/use-now";
@@ -67,6 +67,7 @@ export function ImportantPlaceSheet({
           </h2>
           <div className="mt-1 flex flex-wrap items-center gap-1.5">
             <PlaceStatusBadge status={place.status} />
+            {place.origin === "community" && <UserAddedBadge mine={place.mine} />}
             <span className="text-xs text-muted-foreground">{t(`ipCategory.${place.category}`)}</span>
           </div>
           <p className="mt-1 text-xs text-muted-foreground">{t("updatedAgo", { ago: formatFreshness(place.updated_at, t, now) })}</p>
@@ -120,6 +121,7 @@ export function ImportantPlaceSheet({
         {place.source && <Row label={t("ipSource")}>{place.source}</Row>}
         {place.description && <Row label={t("descriptionHeading")}>{place.description}</Row>}
       </dl>
+      {place.origin === "community" && <p className="mt-4 px-4 text-xs font-medium text-amber-900">{t("ipFromUserNote")}</p>}
       <p className="mt-4 px-4 text-xs text-muted-foreground">{t("ipStatusDisclaimer")}</p>
     </BottomSheet>
   );

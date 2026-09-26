@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { LocaleToggle } from "@/components/locale-toggle";
-import { OfficialBadge, PlaceStatusBadge, ToneBadge } from "@/components/community/badges";
+import { OfficialBadge, PlaceStatusBadge, ToneBadge, UserAddedBadge } from "@/components/community/badges";
 import { ReportSummary } from "@/components/report/report-card";
 import { EmptyState } from "@/components/views/view-shell";
 import { adminService } from "@/services/admin-service";
@@ -568,6 +568,7 @@ function PlacesPanel({ token }: { token: string }) {
         <Card key={p.id}>
           <div className="flex flex-wrap items-center gap-1.5">
             <PlaceStatusBadge status={p.status} />
+            {p.origin === "community" && <UserAddedBadge />}
             <span className="text-xs text-muted-foreground">{t(`ipCategory.${p.category}`)}</span>
           </div>
           <p className="font-semibold">{p.name}</p>

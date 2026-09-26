@@ -2,7 +2,7 @@
 
 import type { ReactNode } from "react";
 import type { LucideIcon } from "lucide-react";
-import { UsersRound } from "lucide-react";
+import { UserRoundPlus, UsersRound } from "lucide-react";
 import { toneClass, type Tone } from "@/lib/report-meta";
 import {
   AREA_LEVEL_META,
@@ -85,6 +85,17 @@ export function CommunityBadge({ className }: { className?: string }) {
     <span className={cn(badgeBase, "border-slate-300 bg-background text-slate-700", className)}>
       <UsersRound className="size-3.5" aria-hidden />
       {t("sourceCommunity")}
+    </span>
+  );
+}
+
+// An important place someone added from the app (not operator-curated).
+export function UserAddedBadge({ mine, className }: { mine?: boolean; className?: string }) {
+  const { t } = useTranslation();
+  return (
+    <span className={cn(badgeBase, "border-slate-300 bg-background text-slate-700", className)}>
+      <UserRoundPlus className="size-3.5" aria-hidden />
+      {mine ? t("ipMine") : t("ipFromUser")}
     </span>
   );
 }

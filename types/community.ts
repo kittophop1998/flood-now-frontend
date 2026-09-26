@@ -204,6 +204,10 @@ export type ImportantPlaceCategory = (typeof IMPORTANT_PLACE_CATEGORIES)[number]
 export const IMPORTANT_PLACE_STATUSES = ["open", "closed", "full", "unknown"] as const;
 export type ImportantPlaceStatus = (typeof IMPORTANT_PLACE_STATUSES)[number];
 
+// "official" = operator-curated; "community" = added by someone from the app
+// (unverified).
+export type ImportantPlaceOrigin = "official" | "community";
+
 export interface ImportantPlace {
   id: string;
   name: string;
@@ -215,11 +219,21 @@ export interface ImportantPlace {
   description: string | null;
   contact: string | null;
   source: string | null;
+  origin: ImportantPlaceOrigin;
+  // True when this device added the place (only it can edit/delete it).
+  mine: boolean;
   created_at: string;
   updated_at: string;
 }
 
-export type ImportantPlaceInput = Partial<Omit<ImportantPlace, "id" | "created_at" | "updated_at">>;
+export type ImportantPlaceInput = Partial<Omit<ImportantPlace, "id" | "origin" | "mine" | "created_at" | "updated_at">>;
+
+// What anyone can send when adding/editing their own place (no source).
+export type CommunityPlaceInput = Partial<Pick<ImportantPlace, "name" | "category" | "latitude" | "longitude" | "status">> & {
+  address?: string;
+  description?: string;
+  contact?: string;
+};
 
 // --- Official announcements ---
 

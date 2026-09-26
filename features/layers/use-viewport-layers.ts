@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { announcementsService, importantPlacesService } from "@/services/community-service";
 import { isAbortError } from "@/services/api-client";
+import { getDeviceId } from "@/lib/device-id";
 import { readCache, writeCache } from "@/lib/offline-cache";
 import type { Viewport } from "@/features/reports/use-viewport-reports";
 import { DEFAULT_GISTDA_PERIOD } from "@/lib/official-flood";
@@ -47,6 +48,8 @@ export function useViewportLayers(viewport: Viewport | null, layers: LayerFilter
   const placesAbort = useRef<AbortController | null>(null);
   const annAbort = useRef<AbortController | null>(null);
 
+  // Bumped after this device adds/edits/deletes a place so the layer refetches.
+  const [placesVersion, setPlacesVersion] = useState(0);
   const placeKey = JSON.stringify([layers.placeCategories, layers.placeStatuses]);
   useEffect(() => {
     if (!layers.places || !viewport) return;
@@ -61,7 +64,7 @@ export function useViewportLayers(viewport: Viewport | null, layers: LayerFilter
       setPlacesStatus((s) => (s === "ready" ? s : "loading"));
       try {
         const res = await importantPlacesService.list(
-          { bbox: viewport.bbox, categories: layers.placeCategories, statuses: layers.placeStatuses },
+          { bbox: viewport.bbox, categories: layers.placeCategories, statuses: layers.placeStatuses, deviceId: getDeviceId() },
           controller.signal,
         );
         setPlaces(res.places);
@@ -83,7 +86,7 @@ export function useViewportLayers(viewport: Viewport | null, layers: LayerFilter
     return () => clearTimeout(timer);
     // placeKey stands in for the filter arrays.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [viewport, layers.places, placeKey]);
+  }, [viewport, layers.places, placeKey, placesVersion]);
 
   useEffect(() => {
     if (!layers.announcements || !viewport) return;
@@ -112,6 +115,7 @@ export function useViewportLayers(viewport: Viewport | null, layers: LayerFilter
     places: layers.places ? places : [],
     placesStatus: layers.places ? placesStatus : ("idle" as const),
     placesStaleSince,
+    reloadPlaces: () => setPlacesVersion((v) => v + 1),
     // Announcements with a location are drawn on the map; the rest only list.
     announcements: layers.announcements ? announcements.filter((a) => a.latitude != null && a.longitude != null) : [],
   };

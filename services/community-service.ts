@@ -11,6 +11,7 @@ import type {
   ImportantPlace,
   ImportantPlaceCategory,
   ImportantPlaceStatus,
+  CommunityPlaceInput,
   LatLng,
   NearbySos,
   PublicConfig,
@@ -61,15 +62,28 @@ export const helpersService = {
       .then((r) => r.sos),
 };
 
+// Anyone can add a place; device_id marks which ones this device may edit or
+// delete (the API reports them as `mine`).
 export const importantPlacesService = {
   list: (
-    query: { bbox: BoundingBox; categories?: ImportantPlaceCategory[]; statuses?: ImportantPlaceStatus[] },
+    query: { bbox: BoundingBox; categories?: ImportantPlaceCategory[]; statuses?: ImportantPlaceStatus[]; deviceId?: string },
     signal?: AbortSignal,
   ) =>
     apiClient.get<{ places: ImportantPlace[]; has_more: boolean }>(
-      `/api/v1/important-places${toQuery({ ...bboxParams(query.bbox), categories: query.categories, statuses: query.statuses })}`,
+      `/api/v1/important-places${toQuery({
+        ...bboxParams(query.bbox),
+        categories: query.categories,
+        statuses: query.statuses,
+        device_id: query.deviceId,
+      })}`,
       signal,
     ),
+  create: (deviceId: string, input: CommunityPlaceInput) =>
+    apiClient.post<ImportantPlace>("/api/v1/important-places", { ...input, device_id: deviceId }),
+  update: (deviceId: string, id: string, input: CommunityPlaceInput) =>
+    apiClient.patch<ImportantPlace>(`/api/v1/important-places/${id}`, { ...input, device_id: deviceId }),
+  remove: (deviceId: string, id: string) =>
+    apiClient.delete<void>(`/api/v1/important-places/${id}${toQuery({ device_id: deviceId })}`),
 };
 
 export const announcementsService = {
