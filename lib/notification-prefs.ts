@@ -13,6 +13,7 @@ export const DEFAULT_NOTIFICATION_PREFS: NotificationPrefs = {
   severe_nearby: true,
   resolved: true,
   reopened: true,
+  updated: true,
   confirmed: false,
 };
 

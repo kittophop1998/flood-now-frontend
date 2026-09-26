@@ -12,11 +12,13 @@ export function ImagePicker({
   onSelect,
   onRetry,
   onRemove,
+  hint,
 }: {
   state: ImageUploadState;
   onSelect: (file: File) => void;
   onRetry: () => void;
   onRemove: () => void;
+  hint?: string;
 }) {
   const { t } = useTranslation();
   const inputRef = useRef<HTMLInputElement>(null);
@@ -91,7 +93,7 @@ export function ImagePicker({
           {state.message}
         </p>
       )}
-      <p className="text-xs text-muted-foreground">{t("photoHint")}</p>
+      <p className="text-xs text-muted-foreground">{hint ?? t("photoHint")}</p>
     </div>
   );
 }

@@ -99,7 +99,17 @@ export interface CreateReportInput {
   client_id?: string | null;
 }
 
-export interface ConfirmReportInput {
+// What someone on the spot says has changed, sent with a still_active
+// confirmation. Omitted fields stay as they are; fields that don't apply to
+// the report's category are dropped by the API.
+export interface ConditionUpdate {
+  severity?: Severity;
+  water_depth?: WaterDepth;
+  passability?: Passability;
+  image_key?: string;
+}
+
+export interface ConfirmReportInput extends ConditionUpdate {
   device_id: string;
   status: ConfirmationStatus;
 }
@@ -153,7 +163,7 @@ export type CreateFollowInput =
   | { device_id: string; kind: "report"; report_id: string }
   | { device_id: string; kind: "area"; latitude: number; longitude: number; radius_m: number };
 
-export const NOTIFICATION_KINDS = ["severe_nearby", "confirmed", "resolved", "reopened"] as const;
+export const NOTIFICATION_KINDS = ["severe_nearby", "updated", "confirmed", "resolved", "reopened"] as const;
 export type NotificationKind = (typeof NOTIFICATION_KINDS)[number];
 
 export interface AppNotification {

@@ -6,6 +6,7 @@ import { applyClientFilters, DEFAULT_FILTERS, toggleChipTypes, toListQuery } fro
 import { CATEGORY_META, categoryLabel, hasKnownPassability, reportTitle, suggestPassability } from "@/lib/report-meta";
 import { createReportFormSchema } from "@/lib/report-schema";
 import { isInCooldown, RECONFIRM_COOLDOWN_MS } from "@/lib/confirmed-reports";
+import { conditionChanges, conditionDraftFrom } from "@/lib/condition-update";
 import { formatDistance } from "@/lib/distance";
 import { freshnessLine } from "@/lib/freshness";
 import { en } from "@/lib/i18n/en";
@@ -183,4 +184,25 @@ test("stored reports with retired categories still render with their own label a
   assert.equal(CATEGORY_META.vehicle_stalled.fields.passability, true);
   assert.equal(CATEGORY_META.help_needed.fields.helpDetails, true);
   assert.equal(reportTitle(t, report({ type: "vehicle_stalled", water_depth: null })), "Broken-down vehicle");
+});
+
+test("condition update: sends only what changed", () => {
+  const r = report({ severity: "high", water_depth: "knee", passability: { walk: "impassable", motorcycle: "impassable", sedan: "not_recommended", suv_pickup: "caution" } });
+  const draft = conditionDraftFrom(r);
+  assert.deepEqual(conditionChanges(r, draft), {}, "untouched dialog = plain still happening");
+
+  const lower = { ...draft, water_depth: "shin" as const, severity: "moderate" as const, image_key: "reports/new.jpg" };
+  assert.deepEqual(conditionChanges(r, lower), { severity: "moderate", water_depth: "shin", image_key: "reports/new.jpg" });
+
+  const pass = { ...draft, passability: { ...draft.passability, sedan: "passable" as const } };
+  assert.deepEqual(conditionChanges(r, pass), { passability: pass.passability });
+});
+
+test("condition update: no passability equals all unknown; category fields respected", () => {
+  const r = report({ passability: null });
+  assert.deepEqual(conditionChanges(r, conditionDraftFrom(r)), {});
+
+  const outage = report({ type: "power_outage", water_depth: null, passability: null });
+  const draft = { ...conditionDraftFrom(outage), water_depth: "knee" as const, passability: { walk: "impassable" as const, motorcycle: "unknown" as const, sedan: "unknown" as const, suv_pickup: "unknown" as const } };
+  assert.deepEqual(conditionChanges(outage, draft), {}, "power outage has neither depth nor passability");
 });

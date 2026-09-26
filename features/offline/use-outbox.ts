@@ -6,7 +6,7 @@ import { ApiError, isNetworkError } from "@/services/api-client";
 import { getDeviceId } from "@/lib/device-id";
 import { setConfirmation } from "@/lib/confirmed-reports";
 import { applySyncResult, enqueue, newClientId, readOutbox, writeOutbox, type OutboxItem } from "@/lib/outbox";
-import type { ConfirmationStatus, CreateReportInput, Report } from "@/types/report";
+import type { ConditionUpdate, ConfirmationStatus, CreateReportInput, Report } from "@/types/report";
 
 const RETRY_INTERVAL_MS = 30_000;
 
@@ -40,7 +40,7 @@ export function useOutbox(onSynced: (report: Report) => void) {
         const report =
           item.kind === "report"
             ? await reportsService.create({ ...item.payload, client_id: item.id })
-            : await reportsService.confirm(item.reportId, { device_id: getDeviceId(), status: item.payload.status });
+            : await reportsService.confirm(item.reportId, { ...item.payload, device_id: getDeviceId() });
         if (item.kind === "confirm") setConfirmation(item.reportId, item.payload.status);
         update((all) => applySyncResult(all, item.id, { ok: true }));
         onSyncedRef.current(report);
@@ -80,9 +80,17 @@ export function useOutbox(onSynced: (report: Report) => void) {
   );
 
   const queueConfirm = useCallback(
-    (reportId: string, status: ConfirmationStatus) => {
+    (reportId: string, status: ConfirmationStatus, condition: ConditionUpdate = {}) => {
       update((all) =>
-        enqueue(all, { id: newClientId(), kind: "confirm", reportId, payload: { status }, createdAt: new Date().toISOString(), attempts: 0, status: "pending" }),
+        enqueue(all, {
+          id: newClientId(),
+          kind: "confirm",
+          reportId,
+          payload: { ...condition, status },
+          createdAt: new Date().toISOString(),
+          attempts: 0,
+          status: "pending",
+        }),
       );
     },
     [update],

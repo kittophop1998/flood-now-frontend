@@ -18,11 +18,10 @@ import { useApproximateAddress, useDuplicateReports } from "@/features/reports/u
 import { useNow } from "@/features/common/use-now";
 import { createReportFormSchema, type ReportFormValues } from "@/lib/report-schema";
 import { CATEGORY_META, hasKnownPassability, suggestPassability } from "@/lib/report-meta";
+import { UNKNOWN_PASSABILITY } from "@/lib/condition-update";
 import { useTranslation } from "@/lib/i18n/locale-context";
 import { cn } from "@/lib/utils";
-import type { CreateReportInput, Passability, Report } from "@/types/report";
-
-const UNKNOWN_PASSABILITY: Passability = { walk: "unknown", motorcycle: "unknown", sedan: "unknown", suv_pickup: "unknown" };
+import type { CreateReportInput, Report } from "@/types/report";
 
 // Form state kept by the page while the user goes back to adjust the
 // location, so nothing typed is lost.

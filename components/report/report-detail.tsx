@@ -9,6 +9,7 @@ import {
   CircleX,
   Clock,
   Flag,
+  PenLine,
   Loader2,
   MapPin,
   Navigation,
@@ -21,6 +22,7 @@ import { Button } from "@/components/ui/button";
 import { BottomSheet, type SheetSnap } from "@/components/ui/bottom-sheet";
 import { ReportSummary } from "@/components/report/report-card";
 import { ReportProblemDialog } from "@/components/report/report-problem-dialog";
+import { ReportUpdateDialog } from "@/components/report/report-update-dialog";
 import { CommunityBadge } from "@/components/community/badges";
 import { PassabilityGrid } from "@/components/report/passability";
 import { DepthGauge, SeverityBadge } from "@/components/report/report-badges";
@@ -37,7 +39,7 @@ import { CATEGORY_META, WATER_DEPTH_META, hasKnownPassability, reportTitle, wate
 import { currentStatus, isOpen } from "@/lib/report-status";
 import { useTranslation } from "@/lib/i18n/locale-context";
 import { cn } from "@/lib/utils";
-import type { ConfirmationStatus, Report } from "@/types/report";
+import type { ConditionUpdate, ConfirmationStatus, Report } from "@/types/report";
 
 type LatLng = { latitude: number; longitude: number };
 
@@ -59,19 +61,23 @@ export function ReportDetailSheet({
   following: boolean;
   onToggleFollow: () => Promise<boolean>;
   onVisibleHeightChange?: (px: number) => void;
-  // Offline: the vote is queued and sent when the network returns.
-  onQueueVote: (status: ConfirmationStatus) => void;
+  // Offline: the vote (and any condition update whose photo was already
+  // uploaded) is queued and sent when the network returns.
+  onQueueVote: (status: ConfirmationStatus, condition?: ConditionUpdate) => void;
 }) {
   const { t, locale } = useTranslation();
   const now = useNow();
   const [snap, setSnap] = useState<SheetSnap>("peek");
   const { confirm, pendingStatus, error } = useConfirmReport();
   const [deviceVote, setDeviceVote] = useState<DeviceConfirmation | null>(() => getConfirmation(report.id));
-  const [justVoted, setJustVoted] = useState<ConfirmationStatus | null>(null);
+  const [justVoted, setJustVoted] = useState<ConfirmationStatus | "updated" | null>(null);
   const [showCoords, setShowCoords] = useState(false);
   const [followPending, setFollowPending] = useState(false);
   const [problemOpen, setProblemOpen] = useState(false);
   const [queuedVote, setQueuedVote] = useState<ConfirmationStatus | null>(null);
+  const [updateOpen, setUpdateOpen] = useState(false);
+  // Remounts the update dialog per opening so it starts from the latest report.
+  const [updateKey, setUpdateKey] = useState(0);
   const { place } = useApproximateAddress(report);
 
   const status = currentStatus(report, now);
@@ -81,26 +87,50 @@ export function ReportDetailSheet({
   const distance = userLocation ? distanceMeters(userLocation, report) : null;
   const locationText = place?.name ?? (distance != null ? t("locationDistance", { d: formatDistance(distance, t) }) : null);
 
-  function queueVote(next: ConfirmationStatus) {
-    onQueueVote(next);
+  function queueVote(next: ConfirmationStatus, condition?: ConditionUpdate) {
+    onQueueVote(next, condition);
     setDeviceVote(setConfirmation(report.id, next));
     setQueuedVote(next);
     setJustVoted(null);
   }
 
-  async function handleVote(next: ConfirmationStatus) {
-    if (isInCooldown(deviceVote, next)) return;
+  // Returns whether the vote was sent or queued.
+  async function vote(next: ConfirmationStatus, condition?: ConditionUpdate): Promise<boolean> {
     setJustVoted(null);
-    if (!navigator.onLine) return queueVote(next);
-    const updated = await confirm(report.id, next);
+    if (!navigator.onLine) {
+      queueVote(next, condition);
+      return true;
+    }
+    const updated = await confirm(report.id, next, condition);
     if (updated) {
       setDeviceVote(setConfirmation(report.id, next));
-      setJustVoted(next);
+      setJustVoted(condition ? "updated" : next);
       setQueuedVote(null);
       onConfirmed(updated);
-    } else if (!navigator.onLine) {
-      queueVote(next);
+      return true;
     }
+    if (!navigator.onLine) {
+      queueVote(next, condition);
+      return true;
+    }
+    return false;
+  }
+
+  function handleVote(next: ConfirmationStatus) {
+    if (isInCooldown(deviceVote, next)) return;
+    vote(next);
+  }
+
+  function openUpdate() {
+    setUpdateKey((k) => k + 1);
+    setUpdateOpen(true);
+  }
+
+  // An update always carries new information, so it skips the repeat-tap
+  // cooldown; with nothing changed it is a plain "still happening".
+  async function handleUpdate(condition: ConditionUpdate) {
+    const changed = Object.keys(condition).length > 0;
+    if (await vote("still_active", changed ? condition : undefined)) setUpdateOpen(false);
   }
 
   async function handleShare() {
@@ -187,25 +217,38 @@ export function ReportDetailSheet({
           </Section>
         )}
 
-        <Section title={t("stillAccurateQuestion")}>
-          <div className="grid grid-cols-2 gap-2">
+        <Section title={t("situationQuestion")}>
+          <div className="grid grid-cols-3 gap-2">
+            <VoteButton
+              selected={false}
+              pending={false}
+              disabled={pendingStatus !== null}
+              icon={<PenLine />}
+              hint={t("voteStillChangedHint")}
+              onClick={openUpdate}
+              aria-haspopup="dialog"
+            >
+              {t("voteStillChanged")}
+            </VoteButton>
             <VoteButton
               selected={deviceVote?.status === "still_active"}
-              pending={pendingStatus === "still_active"}
+              pending={pendingStatus === "still_active" && !updateOpen}
               disabled={pendingStatus !== null}
               icon={<CircleCheck />}
+              hint={t("voteUnchangedHint")}
               onClick={() => handleVote("still_active")}
             >
-              {t("stillActive")}
+              {t("voteUnchanged")}
             </VoteButton>
             <VoteButton
               selected={deviceVote?.status === "cleared"}
               pending={pendingStatus === "cleared"}
               disabled={pendingStatus !== null}
               icon={<CircleX />}
+              hint={t("voteGoneHint")}
               onClick={() => handleVote("cleared")}
             >
-              {t("cleared")}
+              {t("voteGone")}
             </VoteButton>
           </div>
           <p className="text-xs text-muted-foreground">
@@ -218,7 +261,9 @@ export function ReportDetailSheet({
               <p className="text-destructive">{error}</p>
             ) : (
               justVoted && (
-                <p className="text-teal-700">{t(justVoted === "cleared" ? "clearedSuccess" : "confirmSuccess")}</p>
+                <p className="text-teal-700">
+                  {t(justVoted === "cleared" ? "clearedSuccess" : justVoted === "updated" ? "updateSuccess" : "confirmSuccess")}
+                </p>
               )
             )}
           </div>
@@ -336,6 +381,15 @@ export function ReportDetailSheet({
           {t("problemOpen")}
         </Button>
         <ReportProblemDialog reportId={report.id} open={problemOpen} onOpenChange={setProblemOpen} />
+        <ReportUpdateDialog
+          key={updateKey}
+          report={report}
+          open={updateOpen}
+          onOpenChange={setUpdateOpen}
+          onSubmit={handleUpdate}
+          submitting={pendingStatus !== null}
+          error={updateOpen ? error : null}
+        />
       </div>
     </BottomSheet>
   );
@@ -386,28 +440,34 @@ function VoteButton({
   pending,
   disabled,
   icon,
+  hint,
   onClick,
   children,
+  "aria-haspopup": hasPopup,
 }: {
   selected: boolean;
   pending: boolean;
   disabled: boolean;
   icon: ReactNode;
+  hint: string;
   onClick: () => void;
   children: ReactNode;
+  "aria-haspopup"?: "dialog";
 }) {
   return (
     <Button
       type="button"
       variant={selected ? "default" : "outline"}
-      className="h-12 rounded-xl text-sm [&_svg]:size-5"
-      aria-pressed={selected}
+      className="h-auto min-h-16 flex-col gap-0.5 rounded-xl px-1.5 py-2 text-sm whitespace-normal [&_svg]:size-5"
+      aria-pressed={hasPopup ? undefined : selected}
+      aria-haspopup={hasPopup}
       aria-busy={pending}
       disabled={disabled}
       onClick={onClick}
     >
       {pending ? <Loader2 className="animate-spin" aria-hidden /> : icon}
-      {children}
+      <span className="leading-tight">{children}</span>
+      <span className={cn("text-[11px] leading-tight font-normal", selected ? "opacity-90" : "text-muted-foreground")}>{hint}</span>
     </Button>
   );
 }

@@ -562,7 +562,7 @@ export default function HomePage() {
           following={followedReportIds.has(selectedReport.id)}
           onToggleFollow={() => toggleFollow(selectedReport)}
           onVisibleHeightChange={setSheetHeight}
-          onQueueVote={(voteStatus) => outbox.queueConfirm(selectedReport.id, voteStatus)}
+          onQueueVote={(voteStatus, condition) => outbox.queueConfirm(selectedReport.id, voteStatus, condition)}
         />
       )}
       {layerSheetOpen && layerSelection.kind === "place" && (

@@ -28,7 +28,9 @@ export type ReportFormValues = z.infer<ReturnType<typeof createReportFormSchema>
 
 // Matches the API's single image_key per report.
 export const MAX_IMAGES = 1;
-export const MAX_IMAGE_BYTES = 8 * 1024 * 1024;
+// A picked photo may be larger than the API's 8 MiB upload cap: it's resized
+// on the device first (lib/image-compression.ts), and only that goes to R2.
+export const MAX_IMAGE_BYTES = 25 * 1024 * 1024;
 export const ACCEPTED_IMAGE_TYPES = ["image/jpeg", "image/png", "image/webp"];
 
 export function validateImageFile(file: File, t: TranslateFn): string | null {

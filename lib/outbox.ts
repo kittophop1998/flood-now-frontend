@@ -1,13 +1,14 @@
 // Offline queue for the two actions that are safe to replay later: creating
 // a normal report (a photo only if it was already uploaded before the
 // connection dropped — uploads themselves need the network) and a
-// "still happening / it's over" vote. Each item carries a client id the API
+// "still happening / it's over" vote (with any condition update whose photo
+// was already uploaded). Each item carries a client id the API
 // treats as an idempotency key (reports: client_id; votes: one per device
 // per report), so retrying never duplicates a submission.
 //
 // SOS requests are deliberately NOT queued: a queued SOS would look sent
 // while nobody can see it. See features/sos.
-import type { ConfirmationStatus, CreateReportInput } from "@/types/report";
+import type { ConditionUpdate, ConfirmationStatus, CreateReportInput } from "@/types/report";
 
 const STORAGE_KEY = "floodnow:outbox";
 export const MAX_OUTBOX_ITEMS = 20;
@@ -26,7 +27,7 @@ export type OutboxItem =
       id: string;
       kind: "confirm";
       reportId: string;
-      payload: { status: ConfirmationStatus };
+      payload: ConditionUpdate & { status: ConfirmationStatus };
       createdAt: string;
       attempts: number;
       status: "pending" | "failed";
