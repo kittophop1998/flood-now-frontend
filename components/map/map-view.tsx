@@ -4,13 +4,14 @@ import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Map, { AttributionControl, Layer, Marker, NavigationControl, Source, type MapLayerMouseEvent, type MapRef } from "react-map-gl/maplibre";
 import { setWorkerUrl } from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
-import { ClusterMarker, ReportMarker } from "@/components/map/report-marker";
+import { ReportMarker } from "@/components/map/report-marker";
 import { AnnouncementMarker, CctvClusterMarker, CctvMarker, ImportantPlaceMarker, ZoneMarker } from "@/components/map/overlay-markers";
 import { LocationDot } from "@/components/map/location-dot";
 import { CenterPin } from "@/components/map/center-pin";
 import { clusterPoints, CLUSTER_MAX_ZOOM } from "@/lib/cluster";
 import { GISTDA_FLOOD_META, ROUTE_RISK_META } from "@/lib/community-meta";
 import { circleRing } from "@/lib/distance";
+import { isRecentlyUpdated } from "@/lib/map-filters";
 import { severityRank } from "@/lib/report-meta";
 import { currentStatus } from "@/lib/report-status";
 import { useNow } from "@/features/common/use-now";
@@ -85,6 +86,8 @@ export interface MapViewProps {
 
 // The map is uncontrolled (MapLibre owns the camera) so panning doesn't
 // re-render React; markers only re-cluster when a move ends.
+// Report pins are never grouped; below this zoom they draw as compact dots.
+const COMPACT_PIN_MAX_ZOOM = 13;
 export const MapView = memo(function MapView({
   initialCenter,
   focus,
@@ -160,18 +163,18 @@ export const MapView = memo(function MapView({
     });
   }, [onViewportChange]);
 
-  // The selected report is never folded into a cluster, so it stays visible
-  // above its detail sheet.
-  const clusters = useMemo(() => {
-    const selected = reports.find((r) => r.id === selectedReportId);
-    const rest = clusterPoints(
-      reports.filter((r) => r !== selected),
-      zoom,
-    );
-    return selected ? [...rest, { kind: "point" as const, key: selected.id, item: selected }] : rest;
-  }, [reports, zoom, selectedReportId]);
+  // Every report is its own pin (no grouping at any zoom). Recent ones are
+  // drawn last so they sit on top of older pins at the same spot.
+  const pins = useMemo(
+    () =>
+      reports
+        .map((report) => ({ report, recent: isRecentlyUpdated(report, now) }))
+        .sort((a, b) => Number(a.recent) - Number(b.recent)),
+    [reports, now],
+  );
+  const compact = zoom < COMPACT_PIN_MAX_ZOOM;
 
-  // Cameras cluster like reports (the same screen-space grouping), so a
+  // Cameras cluster (screen-space grouping), so a
   // zoomed-out map shows a few count pills instead of overlapping icons. The
   // selected camera always stays its own marker.
   const selectedCameraId = selectedLayer?.kind === "cctv" ? selectedLayer.id : null;
@@ -453,50 +456,22 @@ export const MapView = memo(function MapView({
           </Marker>
         )}
 
-        {clusters.map((c) => {
-          if (c.kind === "cluster") {
-            const worst = Math.max(...c.items.map((r) => severityRank(r.severity)));
-            return (
-              <Marker
-                key={c.key}
-                latitude={c.latitude}
-                longitude={c.longitude}
-                anchor="center"
-                style={{ zIndex: 1 }}
-                onClick={(e) => {
-                  e.originalEvent.stopPropagation();
-                  if (pickMode) return;
-                  mapRef.current?.flyTo({
-                    center: [c.longitude, c.latitude],
-                    zoom: Math.min(CLUSTER_MAX_ZOOM, mapRef.current.getZoom() + 2),
-                    duration: 500,
-                  });
-                }}
-              >
-                <ClusterMarker
-                  count={c.items.length}
-                  worstRank={worst}
-                  label={t("clusterAriaLabel", { n: c.items.length })}
-                  dimmed={pickMode}
-                />
-              </Marker>
-            );
-          }
-          const report = c.item;
+        {pins.map(({ report, recent }) => {
           const selected = report.id === selectedReportId;
+          const stale = currentStatus(report, now) !== "active";
           return (
             <Marker
-              key={c.key}
+              key={report.id}
               latitude={report.latitude}
               longitude={report.longitude}
               anchor="center"
-              style={{ zIndex: selected ? 4 : currentStatus(report, now) !== "active" ? 0 : severityRank(report.severity) >= 3 ? 2 : 1 }}
+              style={{ zIndex: selected ? 4 : stale ? 0 : recent ? (severityRank(report.severity) >= 3 ? 3 : 2) : 1 }}
               onClick={(e) => {
                 e.originalEvent.stopPropagation();
                 if (!pickMode) onSelectReport(report);
               }}
             >
-              <ReportMarker report={report} selected={selected} now={now} dimmed={pickMode} />
+              <ReportMarker report={report} selected={selected} now={now} dimmed={pickMode} recent={recent} compact={compact} />
             </Marker>
           );
         })}

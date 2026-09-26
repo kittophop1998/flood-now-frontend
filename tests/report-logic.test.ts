@@ -2,7 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { clusterPoints, CLUSTER_MAX_ZOOM } from "@/lib/cluster";
 import { currentStatus, isOpen } from "@/lib/report-status";
-import { applyClientFilters, DEFAULT_FILTERS, toggleChipTypes, toListQuery } from "@/lib/map-filters";
+import { applyClientFilters, DEFAULT_FILTERS, isRecentlyUpdated, toggleChipTypes, toListQuery } from "@/lib/map-filters";
 import { CATEGORY_META, categoryLabel, hasKnownPassability, reportTitle, suggestPassability } from "@/lib/report-meta";
 import { createReportFormSchema } from "@/lib/report-schema";
 import { isInCooldown, RECONFIRM_COOLDOWN_MS } from "@/lib/confirmed-reports";
@@ -205,4 +205,10 @@ test("condition update: no passability equals all unknown; category fields respe
   const outage = report({ type: "power_outage", water_depth: null, passability: null });
   const draft = { ...conditionDraftFrom(outage), water_depth: "knee" as const, passability: { walk: "impassable" as const, motorcycle: "unknown" as const, sedan: "unknown" as const, suv_pickup: "unknown" as const } };
   assert.deepEqual(conditionChanges(outage, draft), {}, "power outage has neither depth nor passability");
+});
+
+test("isRecentlyUpdated: last 2 hours of last_verified_at", () => {
+  const now = new Date("2026-09-26T12:00:00Z");
+  assert.equal(isRecentlyUpdated({ last_verified_at: "2026-09-26T10:01:00Z" }, now), true);
+  assert.equal(isRecentlyUpdated({ last_verified_at: "2026-09-26T09:59:00Z" }, now), false);
 });

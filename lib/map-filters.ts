@@ -15,7 +15,9 @@ export const CATEGORY_CHIPS: { id: string; types: ReportType[] }[] = [
 ];
 
 export const RADIUS_OPTIONS_KM = [1, 3, 5, 10] as const;
-export const UPDATED_WITHIN_OPTIONS_MIN = [60, 180, 360] as const;
+export const UPDATED_WITHIN_OPTIONS_MIN = [60, 120, 180, 360] as const;
+// The "Latest" quick chip and the highlighted pins on the map share this window.
+export const RECENT_WINDOW_MIN = 120;
 export const SEVERE: Severity[] = ["high", "critical"];
 
 export interface MapFilters {
@@ -87,7 +89,7 @@ export function toggleChipTypes(current: ReportType[], chipTypes: ReportType[]):
 export function countAdvancedFilters(filters: MapFilters): number {
   let n = 0;
   if (filters.severities.length > 0 && !isSevereOnly(filters)) n++;
-  if (filters.updatedWithinMin != null && filters.updatedWithinMin !== 60) n++;
+  if (filters.updatedWithinMin != null && filters.updatedWithinMin !== RECENT_WINDOW_MIN) n++;
   if (filters.blockedFor) n++;
   if (filters.nearMe && filters.radiusKm !== DEFAULT_FILTERS.radiusKm) n++;
   return n;
@@ -95,4 +97,10 @@ export function countAdvancedFilters(filters: MapFilters): number {
 
 export function isSevereOnly(filters: MapFilters): boolean {
   return filters.severities.length === SEVERE.length && SEVERE.every((s) => filters.severities.includes(s));
+}
+
+// Updated (reported or re-confirmed) within the last RECENT_WINDOW_MIN; the
+// map draws these pins emphasized and above older ones.
+export function isRecentlyUpdated(report: Pick<Report, "last_verified_at">, now: Date = new Date()): boolean {
+  return now.getTime() - new Date(report.last_verified_at).getTime() < RECENT_WINDOW_MIN * 60_000;
 }

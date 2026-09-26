@@ -14,9 +14,12 @@ const POLL_INTERVAL_MS = 60_000;
 const REGION_MAX_AGE_MS = 30_000;
 // Fetch a margin around the visible area so small pans don't refetch.
 const PAD_RATIO = 0.3;
-// Below this zoom the map shows aggregated flood zones (server-side grid
-// cells + heatmap) instead of individual reports.
-export const AGGREGATE_MAX_ZOOM = 11;
+// Below this zoom (whole-region view) the map shows aggregated flood zones
+// (server-side grid cells + heatmap); from here in, every report is its own pin.
+export const AGGREGATE_MAX_ZOOM = 9;
+// Zoomed-out viewports cover many reports; ask for the API maximum so pins
+// aren't silently dropped (has_more still prompts to zoom in past it).
+const LIST_LIMIT = 1000;
 const CACHE_KEY = "viewport-reports";
 // Enough for the offline copy of one city viewport without filling storage.
 const CACHE_MAX_REPORTS = 400;
@@ -100,7 +103,7 @@ export function useViewportReports(viewport: Viewport | null, filters: MapFilter
           setHasMore(false);
           setMode("aggregate");
         } else {
-          const res = await reportsService.list(query, controller.signal);
+          const res = await reportsService.list({ ...query, limit: LIST_LIMIT }, controller.signal);
           setReports(res.reports);
           setCells([]);
           setHasMore(res.has_more);

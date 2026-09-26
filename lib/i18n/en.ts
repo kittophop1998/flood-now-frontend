@@ -30,7 +30,7 @@ export const en = {
   "chip.help_needed": "Help needed",
   "chip.facilities": "Aid & shelter",
   "quick.nearMe": "Near me",
-  "quick.recent": "Latest",
+  "quick.recent": "Last 2 h",
   "quick.severe": "Severe",
   "quick.active": "Ongoing",
   filtersButton: "Filters",
@@ -66,7 +66,7 @@ export const en = {
   refreshMapButton: "Refresh map",
   mapLabel: "Map of reports",
   reportAriaLabel: "{title}, {severity}",
-  clusterAriaLabel: "{n} reports here. Zoom in",
+  reportRecentAriaLabel: "{title}, {severity}, updated in the last 2 hours",
 
   // Categories
   "category.flooded": "Flood",

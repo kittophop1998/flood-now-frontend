@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { Clock, Layers, Loader2, LocateFixed, MapPin, Search, SlidersHorizontal, TriangleAlert, X, Zap } from "lucide-react";
 import { usePlaceSearch } from "@/features/reports/use-place-search";
-import { CATEGORY_CHIPS, SEVERE, isSevereOnly, toggleChipTypes, countAdvancedFilters, type MapFilters } from "@/lib/map-filters";
+import { CATEGORY_CHIPS, RECENT_WINDOW_MIN, SEVERE, isSevereOnly, toggleChipTypes, countAdvancedFilters, type MapFilters } from "@/lib/map-filters";
 import { CATEGORY_META } from "@/lib/report-meta";
 import { useTranslation } from "@/lib/i18n/locale-context";
 import { cn } from "@/lib/utils";
@@ -57,8 +57,9 @@ export function MapTopBar({
       id: "recent",
       label: "quick.recent",
       icon: Clock,
-      on: filters.updatedWithinMin === 60,
-      toggle: () => onFiltersChange({ ...filters, updatedWithinMin: filters.updatedWithinMin === 60 ? null : 60 }),
+      on: filters.updatedWithinMin === RECENT_WINDOW_MIN,
+      toggle: () =>
+        onFiltersChange({ ...filters, updatedWithinMin: filters.updatedWithinMin === RECENT_WINDOW_MIN ? null : RECENT_WINDOW_MIN }),
     },
     {
       id: "severe",

@@ -30,7 +30,7 @@ export const th: Record<TranslationKey, string> = {
   "chip.help_needed": "ขอความช่วยเหลือ",
   "chip.facilities": "จุดช่วยเหลือ/ศูนย์พักพิง",
   "quick.nearMe": "ใกล้ฉัน",
-  "quick.recent": "ล่าสุด",
+  "quick.recent": "2 ชม. ล่าสุด",
   "quick.severe": "รุนแรง",
   "quick.active": "ยังเกิดอยู่",
   filtersButton: "ตัวกรอง",
@@ -65,7 +65,7 @@ export const th: Record<TranslationKey, string> = {
   refreshMapButton: "รีเฟรชแผนที่",
   mapLabel: "แผนที่รายงาน",
   reportAriaLabel: "{title}, {severity}",
-  clusterAriaLabel: "{n} รายงานในบริเวณนี้ ซูมเข้า",
+  reportRecentAriaLabel: "{title}, {severity}, อัปเดตภายใน 2 ชั่วโมง",
 
   "category.flooded": "น้ำท่วม",
   "category.road_closed": "ถนนปิด",
