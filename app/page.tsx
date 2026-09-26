@@ -219,14 +219,37 @@ export default function HomePage() {
     return null;
   }
 
+  // Jump to the last known position right away, then ask the device again and
+  // follow the fresh fix — the position from page load goes stale as people move.
   async function goToMyLocation(zoom?: number) {
-    const loc = userLocation ?? (await requestLocation());
+    if (userLocation) {
+      setFocus({ ...userLocation, zoom });
+      setLocating(true);
+      const next = await locate();
+      setLocating(false);
+      if (next.status === "granted") {
+        const loc = { latitude: next.latitude, longitude: next.longitude };
+        setFocus({ ...loc, zoom });
+        return loc;
+      }
+      if (next.status === "denied") toast.error(t("locationDenied"));
+      return userLocation;
+    }
+    const loc = await requestLocation();
     if (loc) setFocus({ ...loc, zoom });
     return loc;
   }
 
+  // Always a fresh fix (SOS, saved places, routes); fall back to the last known
+  // position only if the device can't produce one right now.
   async function myLocation() {
-    return userLocation ?? (await requestLocation());
+    if (!userLocation) return requestLocation();
+    setLocating(true);
+    const next = await locate();
+    setLocating(false);
+    if (next.status === "granted") return { latitude: next.latitude, longitude: next.longitude };
+    if (next.status === "denied") toast.error(t("locationDenied"));
+    return userLocation;
   }
 
   function changeFilters(next: MapFilters) {

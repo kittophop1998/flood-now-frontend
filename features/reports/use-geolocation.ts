@@ -10,7 +10,9 @@ export type GeolocationState =
 // Bangkok — a reasonable default center when location isn't available.
 export const DEFAULT_CENTER = { latitude: 13.7563, longitude: 100.5018 };
 
-function requestPosition(onDone: (state: GeolocationState) => void) {
+// `fresh` is for an explicit "where am I now" request: accept only a very
+// recent fix so a moving user isn't sent back to where they were a minute ago.
+function requestPosition(onDone: (state: GeolocationState) => void, fresh = false) {
   if (typeof navigator === "undefined" || !navigator.geolocation) {
     onDone({ status: "unavailable" });
     return;
@@ -29,10 +31,10 @@ function requestPosition(onDone: (state: GeolocationState) => void) {
       navigator.geolocation.getCurrentPosition(onSuccess, onFinalError, {
         enableHighAccuracy: false,
         timeout: 15_000,
-        maximumAge: 5 * 60_000,
+        maximumAge: fresh ? 30_000 : 5 * 60_000,
       });
     },
-    { enableHighAccuracy: true, timeout: 10_000, maximumAge: 60_000 },
+    { enableHighAccuracy: true, timeout: 10_000, maximumAge: fresh ? 5_000 : 60_000 },
   );
 }
 
@@ -56,9 +58,12 @@ export function useGeolocation() {
     () =>
       new Promise<GeolocationState>((resolve) => {
         requestPosition((next) => {
-          setState(next);
+          // A failed refresh (GPS timeout) keeps the last known position
+          // rather than dropping the user's dot; only a revoked permission
+          // clears it.
+          setState((prev) => (next.status === "unavailable" && prev.status === "granted" ? prev : next));
           resolve(next);
-        });
+        }, true);
       }),
     [],
   );
