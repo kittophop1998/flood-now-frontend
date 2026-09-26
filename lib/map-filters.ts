@@ -39,11 +39,9 @@ export const DEFAULT_FILTERS: MapFilters = {
 };
 
 // Every pin stays on the map: reports past their stale_at (and expired or
-// resolved ones) are shown faded by the marker instead of disappearing.
+// resolved ones) are shown faded by the marker instead of disappearing. The
+// zoomed-out zone counts use the same statuses, so they match the pins.
 export const ALL_STATUSES: ReportStatus[] = ["active", "possibly_stale", "expired", "resolved"];
-// Aggregated flood zones (zoomed out) still count only open reports, so old
-// reports don't paint permanent hotspots.
-export const OPEN_STATUSES: ReportStatus[] = ["active", "possibly_stale"];
 
 // The parts the API filters on.
 export function toListQuery(filters: MapFilters, now: Date = new Date()): Omit<ListReportsQuery, "bbox" | "limit"> {

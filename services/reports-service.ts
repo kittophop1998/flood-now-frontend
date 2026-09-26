@@ -31,7 +31,7 @@ export const reportsService = {
       signal,
     ),
 
-  // Zoomed-out map: open reports grouped into grid cells sized for `zoom`.
+  // Zoomed-out map: reports grouped into grid cells sized for `zoom`.
   aggregate: (query: Omit<ListReportsQuery, "limit" | "updatedSince"> & { bbox: BoundingBox; zoom: number }, signal?: AbortSignal) =>
     apiClient.get<AggregateResult>(
       `/api/v1/reports/aggregate${toQuery({

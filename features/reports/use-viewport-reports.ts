@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { reportsService } from "@/services/reports-service";
 import { ApiError, isAbortError, isNetworkError } from "@/services/api-client";
-import { OPEN_STATUSES, toListQuery, type MapFilters } from "@/lib/map-filters";
+import { toListQuery, type MapFilters } from "@/lib/map-filters";
 import { readCache, writeCache } from "@/lib/offline-cache";
 import { useTranslation } from "@/lib/i18n/locale-context";
 import type { AggregateCell, BoundingBox, Report } from "@/types/report";
@@ -94,8 +94,7 @@ export function useViewportReports(viewport: Viewport | null, filters: MapFilter
       try {
         const query = { ...toListQuery(filtersRef.current), bbox: region };
         if (aggregate) {
-          const statuses = filtersRef.current.activeOnly ? query.statuses : OPEN_STATUSES;
-          const res = await reportsService.aggregate({ ...query, statuses, zoom: vp.zoom }, controller.signal);
+          const res = await reportsService.aggregate({ ...query, zoom: vp.zoom }, controller.signal);
           setCells(res.cells);
           setReports([]);
           setHasMore(false);
