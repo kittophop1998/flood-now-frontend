@@ -25,6 +25,8 @@ export interface LayerFilters {
   // Official GISTDA flood areas (features/layers/use-gistda-flood.ts).
   gistdaFlood: boolean;
   gistdaPeriod: GistdaPeriod;
+  // Official DOH highway cameras (features/layers/use-doh-cctv.ts).
+  dohCctv: boolean;
 }
 
 export const DEFAULT_LAYERS: LayerFilters = {
@@ -35,6 +37,7 @@ export const DEFAULT_LAYERS: LayerFilters = {
   placeStatuses: [],
   gistdaFlood: false,
   gistdaPeriod: DEFAULT_GISTDA_PERIOD,
+  dohCctv: false,
 };
 
 // Map overlay data (important places, official announcements) for the

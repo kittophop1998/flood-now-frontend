@@ -5,6 +5,7 @@
 import {
   Anchor,
   Briefcase,
+  Cctv,
   CircleCheck,
   CircleX,
   Clock,
@@ -154,4 +155,12 @@ export const GISTDA_FLOOD_META = {
   fill: "#0ea5e9",
   fillOpacity: 0.25,
   line: "#0369a1",
+} as const;
+
+// Official DOH highway cameras: small white discs with a navy camera, so
+// they read as "camera" without text and stay quieter than community
+// report markers (which keep the strong colors).
+export const CCTV_META = {
+  icon: Cctv,
+  color: "#1e3a8a",
 } as const;

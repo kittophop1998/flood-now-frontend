@@ -6,12 +6,14 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { FloodLayerStatusLine, FloodSwatch } from "@/components/map/official-flood-legend";
+import { CctvGlyph, CctvLayerStatusLine } from "@/components/map/cctv-legend";
 import { IMPORTANT_PLACE_META, OFFICIAL_ICON } from "@/lib/community-meta";
 import { useTranslation } from "@/lib/i18n/locale-context";
 import { cn } from "@/lib/utils";
 import type { LayerFilters } from "@/features/layers/use-viewport-layers";
 import type { FloodLayerStatus } from "@/features/layers/use-gistda-flood";
-import { GISTDA_PERIODS, IMPORTANT_PLACE_CATEGORIES, IMPORTANT_PLACE_STATUSES, type FloodLayer } from "@/types/community";
+import type { CctvLayerStatus } from "@/features/layers/use-doh-cctv";
+import { GISTDA_PERIODS, IMPORTANT_PLACE_CATEGORIES, IMPORTANT_PLACE_STATUSES, type CctvLayer, type FloodLayer } from "@/types/community";
 
 function toggle<T>(list: T[], v: T): T[] {
   return list.includes(v) ? list.filter((x) => x !== v) : [...list, v];
@@ -22,6 +24,15 @@ export interface GistdaLayerState {
   available: boolean;
   layer: FloodLayer | null;
   status: FloodLayerStatus;
+  stale: boolean;
+  onRetry: () => void;
+}
+
+export interface CctvLayerState {
+  // The API has the layer enabled; otherwise the row isn't shown.
+  available: boolean;
+  layer: CctvLayer | null;
+  status: CctvLayerStatus;
   stale: boolean;
   onRetry: () => void;
 }
@@ -66,12 +77,14 @@ export function LayersSheet({
   layers,
   onChange,
   gistda,
+  cctv,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   layers: LayerFilters;
   onChange: (next: LayerFilters) => void;
   gistda: GistdaLayerState;
+  cctv: CctvLayerState;
 }) {
   const { t } = useTranslation();
   return (
@@ -143,6 +156,25 @@ export function LayersSheet({
                       </div>
                       <FloodLayerStatusLine layer={gistda.layer} status={gistda.status} stale={gistda.stale} onRetry={gistda.onRetry} />
                     </div>
+                  )}
+                </div>
+              )}
+              {cctv.available && (
+                <div className="flex flex-col">
+                  <LayerRow
+                    id="sheet-layer-cctv"
+                    icon={<CctvGlyph className="size-8" />}
+                    label={t("layerCctvToggle")}
+                    checked={layers.dohCctv}
+                    onCheckedChange={(v) => onChange({ ...layers, dohCctv: v })}
+                    trailing={
+                      layers.dohCctv && cctv.status === "loading" ? (
+                        <Loader2 className="size-4 shrink-0 animate-spin text-primary" aria-label={t("cctvLoading")} role="status" />
+                      ) : undefined
+                    }
+                  />
+                  {layers.dohCctv && (
+                    <CctvLayerStatusLine className="pb-2 pl-11" layer={cctv.layer} status={cctv.status} stale={cctv.stale} onRetry={cctv.onRetry} />
                   )}
                 </div>
               )}

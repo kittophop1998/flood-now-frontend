@@ -1,19 +1,24 @@
 "use client";
 
 import { useState, type ReactNode } from "react";
-import { Clock, ExternalLink, MapPin, Navigation, Phone, X } from "lucide-react";
+import { Clock, ExternalLink, MapPin, Navigation, Phone, WifiOff, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { BottomSheet, type SheetSnap } from "@/components/ui/bottom-sheet";
 import { OfficialBadge, PlaceStatusBadge, UserAddedBadge } from "@/components/community/badges";
 import { FloodSwatch } from "@/components/map/official-flood-legend";
+import { CctvGlyph } from "@/components/map/cctv-legend";
 import { SeverityBadge } from "@/components/report/report-badges";
 import { useNow } from "@/features/common/use-now";
+import { useOnlineStatus } from "@/features/common/use-online-status";
+import { useCctvNear } from "@/features/layers/use-doh-cctv";
+import { cctvRoadLabel, cctvTitle, floodAreaBBox } from "@/lib/cctv";
 import { ANNOUNCEMENT_TYPE_META, IMPORTANT_PLACE_META } from "@/lib/community-meta";
 import { directionsUrl } from "@/lib/directions";
 import { formatDistance } from "@/lib/distance";
 import { formatClockTime, formatFreshness } from "@/lib/freshness";
 import { useTranslation } from "@/lib/i18n/locale-context";
-import type { Announcement, FloodAreaProperties, FloodLayer, ImportantPlace } from "@/types/community";
+import type { BoundingBox } from "@/types/report";
+import type { Announcement, CctvCamera, CctvLayer, FloodAreaProperties, FloodLayer, ImportantPlace, LatLng } from "@/types/community";
 
 function DirectionsLink({ latitude, longitude }: { latitude: number; longitude: number }) {
   const { t } = useTranslation();
@@ -219,12 +224,17 @@ export function GistdaFloodSheet({
   area,
   layer,
   stale,
+  cctvEnabled,
+  onShowCameras,
   onClose,
   onVisibleHeightChange,
 }: {
   area: FloodAreaProperties;
   layer: FloodLayer;
   stale: boolean;
+  // The camera layer is available: offer the cameras inside this area.
+  cctvEnabled: boolean;
+  onShowCameras: (bbox: BoundingBox) => void;
   onClose: () => void;
   onVisibleHeightChange?: (px: number) => void;
 }) {
@@ -233,6 +243,9 @@ export function GistdaFloodSheet({
   const [snap, setSnap] = useState<SheetSnap>("peek");
   const headingId = "gistda-flood-title";
   const observedAt = area.observed_at ?? layer.observed_at;
+  const feature = layer.areas.features.find((f) => f.properties.ref === area.ref);
+  const areaBBox = feature ? floodAreaBBox(feature) : null;
+  const cameras = useCctvNear(areaBBox ? { bbox: areaBBox } : null, cctvEnabled);
 
   const peek = (
     <div className="flex flex-col gap-3 px-4 pb-4">
@@ -262,6 +275,17 @@ export function GistdaFloodSheet({
         </Button>
       </div>
       <p className="text-xs text-muted-foreground">{t("gistdaDisclaimer")}</p>
+      {cameras.length > 0 && areaBBox && (
+        <div className="flex items-center gap-2.5 rounded-2xl border bg-muted/40 py-1.5 pr-1.5 pl-2.5">
+          <CctvGlyph className="size-8" />
+          <span className="min-w-0 flex-1 text-sm font-medium">
+            {cameras.length === 1 ? t("cctvNearAreaOne") : t("cctvNearArea", { n: cameras.length })}
+          </span>
+          <Button variant="ghost" className="h-11 shrink-0 rounded-xl px-3 text-sm text-primary" onClick={() => onShowCameras(areaBBox)}>
+            {t("cctvShowNearby")}
+          </Button>
+        </div>
+      )}
       <Button variant="outline" className="h-11 rounded-xl text-sm" onClick={() => setSnap(snap === "peek" ? "full" : "peek")} aria-expanded={snap !== "peek"}>
         {snap === "peek" ? t("viewDetails") : t("collapseSheet")}
       </Button>
@@ -301,5 +325,149 @@ export function GistdaFloodSheet({
         <p className="text-xs text-muted-foreground">{t("gistdaDisclaimerRoads")}</p>
       </div>
     </BottomSheet>
+  );
+}
+
+function CctvSourceLink({ href, children }: { href: string; children: ReactNode }) {
+  return (
+    <a
+      href={href}
+      target="_blank"
+      rel="noopener noreferrer"
+      className="inline-flex h-11 w-full items-center justify-center gap-1.5 rounded-xl bg-primary px-3 text-sm font-medium text-primary-foreground hover:bg-primary/90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+    >
+      {children}
+      <ExternalLink className="size-4" aria-hidden />
+    </a>
+  );
+}
+
+// Detail sheet for one official DOH camera. FloodNow shows no picture of its
+// own: every camera is "external_link" (DOH offers no picture feed meant
+// for reuse), so the sheet names the camera and hands off to DOH's page.
+// It's always attributed to DOH and never presented as FloodNow's, as live,
+// or as saying anything about flooding.
+export function CctvSheet({
+  camera,
+  list,
+  onClose,
+  onVisibleHeightChange,
+}: {
+  camera: CctvCamera;
+  // The list the camera came from (fetch time / staleness), if known.
+  list: Pick<CctvLayer, "fetched_at" | "stale"> | null;
+  onClose: () => void;
+  onVisibleHeightChange?: (px: number) => void;
+}) {
+  const { t } = useTranslation();
+  const now = useNow();
+  const online = useOnlineStatus();
+  const [snap, setSnap] = useState<SheetSnap>("peek");
+  const headingId = `cctv-${camera.id}-title`;
+  const road = cctvRoadLabel(camera, t);
+
+  const peek = (
+    <div className="flex flex-col gap-3 px-4 pb-4">
+      <div className="flex items-start gap-3">
+        <CctvGlyph className="size-10 [&>svg]:size-5" />
+        <div className="min-w-0 flex-1">
+          <p className="text-xs font-semibold text-blue-900">{t("cctvTitle")}</p>
+          <h2 id={headingId} tabIndex={-1} className="mt-0.5 text-base leading-snug font-semibold outline-none">
+            {cctvTitle(camera, t)}
+          </h2>
+          {road && <p className="mt-0.5 text-xs text-muted-foreground">{t("cctvStation", { code: camera.name })}</p>}
+        </div>
+        <Button variant="ghost" size="icon" className="-mt-1 -mr-2 size-11 shrink-0 rounded-full" onClick={onClose} aria-label={t("close")}>
+          <X className="size-5" />
+        </Button>
+      </div>
+
+      <div className="flex flex-col items-center gap-3 rounded-2xl border bg-slate-50 px-4 py-4 text-center">
+        <CctvGlyph className="size-12 [&>svg]:size-6" />
+        <div className="flex flex-col gap-0.5">
+          <p className="text-sm font-semibold">{t("cctvExternalHeading")}</p>
+          <p className="text-xs text-muted-foreground">{t("cctvExternalBody")}</p>
+        </div>
+        {!online && (
+          <p role="status" className="flex items-start gap-1.5 text-left text-xs font-medium text-amber-900">
+            <WifiOff className="mt-0.5 size-3.5 shrink-0" aria-hidden />
+            {t("cctvOffline")}
+          </p>
+        )}
+        <CctvSourceLink href={camera.external_url}>{t("cctvOpenSource")}</CctvSourceLink>
+        {!online && <p className="-mt-1 text-[11px] text-muted-foreground">{t("cctvNeedsNetwork")}</p>}
+      </div>
+
+      <p className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs text-muted-foreground">
+        <span className="font-medium text-foreground">{t("cctvSourceLine")}</span>
+        {list && <span>{t("cctvListUpdated", { ago: formatFreshness(list.fetched_at, t, now) })}</span>}
+        {list?.stale && <span className="rounded-full border border-amber-300 bg-amber-50 px-1.5 font-semibold text-amber-900">{t("cctvStaleBadge")}</span>}
+      </p>
+      <Button variant="outline" className="h-11 rounded-xl text-sm" onClick={() => setSnap(snap === "peek" ? "full" : "peek")} aria-expanded={snap !== "peek"}>
+        {snap === "peek" ? t("viewDetails") : t("collapseSheet")}
+      </Button>
+    </div>
+  );
+
+  return (
+    <BottomSheet
+      open
+      snap={snap}
+      onSnapChange={setSnap}
+      onClose={onClose}
+      labelledBy={headingId}
+      peek={peek}
+      expandLabel={t("expandSheet")}
+      collapseLabel={t("collapseSheet")}
+      onVisibleHeightChange={onVisibleHeightChange}
+    >
+      <div className="flex flex-col gap-4 border-t px-4 pt-4">
+        <p className="text-sm">{t("cctvFindHint", { code: camera.name })}</p>
+        <dl className="grid grid-cols-[auto_1fr] gap-x-5 gap-y-2.5 text-sm">
+          <Row label={t("gistdaSource")}>{t("cctvSourceName")}</Row>
+          {road && <Row label={t("cctvRoadRow")}>{road}</Row>}
+          <Row label={t("cctvStationRow")}>{camera.name}</Row>
+        </dl>
+        <p className="text-xs text-muted-foreground">{t("cctvNotFloodNow")}</p>
+      </div>
+    </BottomSheet>
+  );
+}
+
+// "Cameras near this incident": at most a few nearest cameras, as quiet
+// secondary rows. Renders nothing when there are none (or the layer is off).
+export function NearbyCctv({
+  at,
+  enabled,
+  onOpen,
+}: {
+  at: LatLng;
+  enabled: boolean;
+  onOpen: (camera: CctvCamera) => void;
+}) {
+  const { t } = useTranslation();
+  const cameras = useCctvNear({ at: { latitude: at.latitude, longitude: at.longitude } }, enabled);
+  if (cameras.length === 0) return null;
+  return (
+    <section className="flex flex-col gap-2" aria-labelledby="nearby-cctv-title">
+      <h3 id="nearby-cctv-title" className="text-sm font-semibold">
+        {t("cctvNearIncident")}
+      </h3>
+      <ul className="flex flex-col divide-y rounded-2xl border">
+        {cameras.map((c) => (
+          <li key={c.id} className="flex min-h-14 items-center gap-2.5 py-1.5 pr-1.5 pl-2.5">
+            <CctvGlyph className="size-8" />
+            <span className="flex min-w-0 flex-1 flex-col">
+              <span className="text-sm font-medium">{t("cctvDistance", { d: formatDistance(c.distance_m ?? 0, t) })}</span>
+              <span className="truncate text-xs text-muted-foreground">{cctvTitle(c, t)}</span>
+            </span>
+            <Button variant="ghost" className="h-11 shrink-0 rounded-xl px-3 text-sm text-primary" onClick={() => onOpen(c)}>
+              {t("cctvView")}
+            </Button>
+          </li>
+        ))}
+      </ul>
+      <p className="text-[11px] text-muted-foreground">{t("cctvSourceLine")}</p>
+    </section>
   );
 }

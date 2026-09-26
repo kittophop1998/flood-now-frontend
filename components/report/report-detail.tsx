@@ -24,6 +24,7 @@ import { ReportSummary } from "@/components/report/report-card";
 import { ReportProblemDialog } from "@/components/report/report-problem-dialog";
 import { ReportUpdateDialog } from "@/components/report/report-update-dialog";
 import { CommunityBadge } from "@/components/community/badges";
+import { NearbyCctv } from "@/components/layers/layer-detail-sheet";
 import { PassabilityGrid } from "@/components/report/passability";
 import { DepthGauge, SeverityBadge } from "@/components/report/report-badges";
 import { useConfirmReport } from "@/features/reports/use-confirm-report";
@@ -40,6 +41,7 @@ import { currentStatus, isOpen } from "@/lib/report-status";
 import { useTranslation } from "@/lib/i18n/locale-context";
 import { cn } from "@/lib/utils";
 import type { ConditionUpdate, ConfirmationStatus, Report } from "@/types/report";
+import type { CctvCamera } from "@/types/community";
 
 type LatLng = { latitude: number; longitude: number };
 
@@ -53,6 +55,8 @@ export function ReportDetailSheet({
   onToggleFollow,
   onVisibleHeightChange,
   onQueueVote,
+  cctvEnabled,
+  onOpenCamera,
 }: {
   report: Report;
   userLocation: LatLng | null;
@@ -64,6 +68,9 @@ export function ReportDetailSheet({
   // Offline: the vote (and any condition update whose photo was already
   // uploaded) is queued and sent when the network returns.
   onQueueVote: (status: ConfirmationStatus, condition?: ConditionUpdate) => void;
+  // The official camera layer is available: show the nearest cameras.
+  cctvEnabled: boolean;
+  onOpenCamera: (camera: CctvCamera) => void;
 }) {
   const { t, locale } = useTranslation();
   const now = useNow();
@@ -344,6 +351,8 @@ export function ReportDetailSheet({
             <p className="text-sm leading-relaxed break-words whitespace-pre-line">{report.description}</p>
           </Section>
         )}
+
+        <NearbyCctv at={report} enabled={cctvEnabled} onOpen={onOpenCamera} />
 
         {report.type === "help_needed" && (
           <p className="rounded-xl bg-red-50 px-3 py-2.5 text-xs leading-relaxed text-red-800">{t("helpNotDispatchNotice")}</p>

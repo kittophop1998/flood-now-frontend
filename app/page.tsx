@@ -15,8 +15,9 @@ import { LocationPicker } from "@/components/map/location-picker";
 import { RouteSummary } from "@/components/map/route-summary";
 import { ReportForm, type ReportDraft } from "@/components/report/report-form";
 import { ReportDetailSheet } from "@/components/report/report-detail";
-import { AnnouncementSheet, GistdaFloodSheet, ImportantPlaceSheet } from "@/components/layers/layer-detail-sheet";
+import { AnnouncementSheet, CctvSheet, GistdaFloodSheet, ImportantPlaceSheet } from "@/components/layers/layer-detail-sheet";
 import { OfficialFloodLegend } from "@/components/map/official-flood-legend";
+import { CctvLegend } from "@/components/map/cctv-legend";
 import { NearbyView } from "@/components/views/nearby-view";
 import { AlertsView } from "@/components/views/alerts-view";
 import { MoreView, type MoreScreen } from "@/components/views/more-view";
@@ -45,14 +46,16 @@ import { useRouteEvaluation } from "@/features/route/use-route-evaluation";
 import { useSos } from "@/features/sos/use-sos";
 import { DEFAULT_LAYERS, useViewportLayers, type LayerFilters } from "@/features/layers/use-viewport-layers";
 import { useGistdaFlood } from "@/features/layers/use-gistda-flood";
+import { useDohCctv } from "@/features/layers/use-doh-cctv";
 import { EMPTY_FLOOD_AREAS } from "@/lib/official-flood";
+import { withSelectedCamera } from "@/lib/cctv";
 import { reportsService } from "@/services/reports-service";
 import { setConfirmation } from "@/lib/confirmed-reports";
 import { newClientId } from "@/lib/outbox";
 import { DEFAULT_FILTERS, applyClientFilters, type MapFilters } from "@/lib/map-filters";
 import { useTranslation } from "@/lib/i18n/locale-context";
-import type { CreateReportInput, Place, Report } from "@/types/report";
-import type { Announcement, FloodAreaProperties, ImportantPlace, LatLng, RouteEvaluation, SavedPlace } from "@/types/community";
+import type { BoundingBox, CreateReportInput, Place, Report } from "@/types/report";
+import type { Announcement, CctvCamera, FloodAreaProperties, ImportantPlace, LatLng, RouteEvaluation, SavedPlace } from "@/types/community";
 
 const MapView = dynamic(() => import("@/components/map/map-view").then((m) => m.MapView), {
   ssr: false,
@@ -70,6 +73,7 @@ type Mode =
 type LayerSelection =
   | { kind: "place"; place: ImportantPlace }
   | { kind: "announcement"; announcement: Announcement }
+  | { kind: "cctv"; camera: CctvCamera }
   // A GISTDA flood area, tied to the snapshot it was tapped in.
   | { kind: "flood"; area: FloodAreaProperties; fetchedAt: string }
   | null;
@@ -140,6 +144,9 @@ export default function HomePage() {
   // user switched it on — nothing is requested otherwise.
   const gistdaOn = config.gistda_flood && layers.gistdaFlood;
   const gistda = useGistdaFlood(viewport, gistdaOn, layers.gistdaPeriod);
+  // Official DOH cameras: same rule — nothing is requested until switched on.
+  const cctvOn = config.doh_cctv && layers.dohCctv;
+  const cctv = useDohCctv(viewport, cctvOn);
   const outbox = useOutbox(upsertReport);
 
   const userLocation = useMemo(
@@ -327,8 +334,22 @@ export default function HomePage() {
     closeReport();
     setTab("map");
     setLayerSelection(selection);
-    const point = selection.kind === "place" ? selection.place : selection.announcement;
+    const point = selection.kind === "place" ? selection.place : selection.kind === "cctv" ? selection.camera : selection.announcement;
     if (point.latitude != null && point.longitude != null) setFocus({ latitude: point.latitude, longitude: point.longitude, zoom: 15 });
+  }
+
+  // A camera picked from an incident's nearby list: switch the layer on so
+  // it's drawn (selected) on the map, then open its sheet.
+  function openCamera(camera: CctvCamera) {
+    setLayers((l) => ({ ...l, dohCctv: true }));
+    openLayerItem({ kind: "cctv", camera });
+  }
+
+  // "Show nearby cameras" from a GISTDA area: the camera layer on, framed on the area.
+  function showCamerasIn(bbox: BoundingBox) {
+    setLayers((l) => ({ ...l, dohCctv: true }));
+    setLayerSelection(null);
+    setFocus({ latitude: (bbox.minLat + bbox.maxLat) / 2, longitude: (bbox.minLng + bbox.maxLng) / 2, bounds: [bbox.minLng, bbox.minLat, bbox.maxLng, bbox.maxLat] });
   }
 
   function showSavedPlace(p: SavedPlace) {
@@ -361,10 +382,17 @@ export default function HomePage() {
   // A flood selection lapses with its snapshot (layer off, other period, refetched).
   const floodSelection =
     layerSelection?.kind === "flood" && gistda.layer?.fetched_at === layerSelection.fetchedAt ? layerSelection : null;
-  const layerSheetOpen = onMap && !picking && !sheetOpen && layerSelection != null && (layerSelection.kind !== "flood" || floodSelection != null);
+  const layerSheetOpen =
+    onMap &&
+    !picking &&
+    !sheetOpen &&
+    layerSelection != null &&
+    (layerSelection.kind !== "flood" || floodSelection != null) &&
+    (layerSelection.kind !== "cctv" || cctvOn);
   const routeCardOpen = onMap && !picking && !sheetOpen && !layerSheetOpen && routeOverlay != null;
   const filtersActive = JSON.stringify(filters) !== JSON.stringify(DEFAULT_FILTERS);
-  const layersActive = (layers.places ? 1 : 0) + (layers.announcements ? 1 : 0) + (gistdaOn ? 1 : 0);
+  const layersActive = (layers.places ? 1 : 0) + (layers.announcements ? 1 : 0) + (gistdaOn ? 1 : 0) + (cctvOn ? 1 : 0);
+  const cctvSelection = layerSelection?.kind === "cctv" ? layerSelection.camera : null;
   const outboxCount = outbox.pendingCount + outbox.failedCount;
   // On desktop the sheet floats at the side, so it doesn't cover the map bottom.
   const bottomInset = isDesktop
@@ -432,15 +460,19 @@ export default function HomePage() {
           places={layerData.places}
           announcements={layerData.announcements}
           floodAreas={gistdaOn ? (gistda.layer?.areas ?? EMPTY_FLOOD_AREAS) : null}
+          cameras={cctvOn ? withSelectedCamera(cctv.cameras, cctvSelection) : []}
           selectedLayer={
             layerSelection?.kind === "place"
               ? { kind: "place", id: layerSelection.place.id }
               : layerSelection?.kind === "announcement"
                 ? { kind: "announcement", id: layerSelection.announcement.id }
-                : floodSelection
-                  ? { kind: "flood", ref: floodSelection.area.ref }
-                  : null
+                : layerSelection?.kind === "cctv"
+                  ? { kind: "cctv", id: layerSelection.camera.id }
+                  : floodSelection
+                    ? { kind: "flood", ref: floodSelection.area.ref }
+                    : null
           }
+          onSelectCamera={(camera) => openLayerItem({ kind: "cctv", camera })}
           onSelectPlace={(place) => openLayerItem({ kind: "place", place })}
           onSelectAnnouncement={(announcement) => openLayerItem({ kind: "announcement", announcement })}
           route={routeOverlay}
@@ -476,16 +508,30 @@ export default function HomePage() {
               SOS
               {sos.active && <span className="rounded-full bg-white/25 px-1.5 text-[11px] font-semibold">{t(`sosStatus.${sos.active.status}`)}</span>}
             </button>
-            {gistdaOn && (
-              <OfficialFloodLegend
-                className="absolute bottom-[calc(var(--map-bottom-inset)+6.75rem)] left-3 z-10 transition-[bottom] duration-300 sm:bottom-[9rem]"
-                period={layers.gistdaPeriod}
-                layer={gistda.layer}
-                status={gistda.status}
-                stale={gistda.stale}
-                onOpenLayers={() => setLayersSheetOpen(true)}
-                onRetry={gistda.retry}
-              />
+            {/* Hidden on phones while a detail sheet is up: the stack would
+                ride up into the search/filter bar. */}
+            {(gistdaOn || cctvOn) && (isDesktop || !(sheetOpen || layerSheetOpen)) && (
+              <div className="absolute bottom-[calc(var(--map-bottom-inset)+6.75rem)] left-3 z-10 flex flex-col items-start gap-1.5 transition-[bottom] duration-300 sm:bottom-[9rem]">
+                {cctvOn && (
+                  <CctvLegend
+                    layer={cctv.layer}
+                    status={cctv.status}
+                    stale={cctv.stale}
+                    onOpenLayers={() => setLayersSheetOpen(true)}
+                    onRetry={cctv.retry}
+                  />
+                )}
+                {gistdaOn && (
+                  <OfficialFloodLegend
+                    period={layers.gistdaPeriod}
+                    layer={gistda.layer}
+                    status={gistda.status}
+                    stale={gistda.stale}
+                    onOpenLayers={() => setLayersSheetOpen(true)}
+                    onRetry={gistda.retry}
+                  />
+                )}
+              </div>
             )}
           </>
         )}
@@ -563,6 +609,8 @@ export default function HomePage() {
           onToggleFollow={() => toggleFollow(selectedReport)}
           onVisibleHeightChange={setSheetHeight}
           onQueueVote={(voteStatus, condition) => outbox.queueConfirm(selectedReport.id, voteStatus, condition)}
+          cctvEnabled={config.doh_cctv && online}
+          onOpenCamera={openCamera}
         />
       )}
       {layerSheetOpen && layerSelection.kind === "place" && (
@@ -581,12 +629,23 @@ export default function HomePage() {
           onVisibleHeightChange={setSheetHeight}
         />
       )}
+      {layerSheetOpen && layerSelection.kind === "cctv" && (
+        <CctvSheet
+          key={layerSelection.camera.id}
+          camera={layerSelection.camera}
+          list={cctv.layer}
+          onClose={() => setLayerSelection(null)}
+          onVisibleHeightChange={setSheetHeight}
+        />
+      )}
       {layerSheetOpen && floodSelection && gistda.layer && (
         <GistdaFloodSheet
           key={`${floodSelection.fetchedAt}:${floodSelection.area.ref}`}
           area={floodSelection.area}
           layer={gistda.layer}
           stale={gistda.stale}
+          cctvEnabled={config.doh_cctv && online}
+          onShowCameras={showCamerasIn}
           onClose={() => setLayerSelection(null)}
           onVisibleHeightChange={setSheetHeight}
         />
@@ -742,6 +801,7 @@ export default function HomePage() {
         layers={layers}
         onChange={setLayers}
         gistda={{ available: config.gistda_flood, layer: gistda.layer, status: gistda.status, stale: gistda.stale, onRetry: gistda.retry }}
+        cctv={{ available: config.doh_cctv, layer: cctv.layer, status: cctv.status, stale: cctv.stale, onRetry: cctv.retry }}
       />
 
       <Drawer open={mode.kind === "creating"} onOpenChange={(open) => !open && cancelReport()}>

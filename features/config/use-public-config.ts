@@ -6,7 +6,7 @@ import { readCache, writeCache } from "@/lib/offline-cache";
 import type { PublicConfig } from "@/types/community";
 
 const CACHE_KEY = "public-config";
-const EMPTY: PublicConfig = { donation: null, gistda_flood: false };
+const EMPTY: PublicConfig = { donation: null, gistda_flood: false, doh_cctv: false };
 
 // Non-secret runtime config from the API (e.g. whether donations are on).
 // Falls back to the last fetched copy offline; anything missing means the
@@ -19,7 +19,7 @@ export function usePublicConfig(): PublicConfig {
     configService
       .public(controller.signal)
       .then((c) => {
-        const next = { donation: c.donation ?? null, gistda_flood: c.gistda_flood === true };
+        const next = { donation: c.donation ?? null, gistda_flood: c.gistda_flood === true, doh_cctv: c.doh_cctv === true };
         setConfig(next);
         writeCache(CACHE_KEY, next);
       })

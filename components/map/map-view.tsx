@@ -5,7 +5,7 @@ import Map, { AttributionControl, Layer, Marker, NavigationControl, Source, type
 import { setWorkerUrl } from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
 import { ClusterMarker, ReportMarker } from "@/components/map/report-marker";
-import { AnnouncementMarker, ImportantPlaceMarker, ZoneMarker } from "@/components/map/overlay-markers";
+import { AnnouncementMarker, CctvClusterMarker, CctvMarker, ImportantPlaceMarker, ZoneMarker } from "@/components/map/overlay-markers";
 import { LocationDot } from "@/components/map/location-dot";
 import { CenterPin } from "@/components/map/center-pin";
 import { clusterPoints, CLUSTER_MAX_ZOOM } from "@/lib/cluster";
@@ -17,7 +17,7 @@ import { useNow } from "@/features/common/use-now";
 import { useTranslation } from "@/lib/i18n/locale-context";
 import type { Viewport } from "@/features/reports/use-viewport-reports";
 import type { AggregateCell, Report } from "@/types/report";
-import type { Announcement, EvaluatedRoute, FloodAreaCollection, ImportantPlace } from "@/types/community";
+import type { Announcement, CctvCamera, EvaluatedRoute, FloodAreaCollection, ImportantPlace } from "@/types/community";
 
 const OPENFREEMAP_STYLE = "https://tiles.openfreemap.org/styles/liberty";
 
@@ -47,6 +47,7 @@ export type LayerSelection =
   | { kind: "place"; id: string }
   | { kind: "announcement"; id: string }
   | { kind: "flood"; ref: number }
+  | { kind: "cctv"; id: string }
   | null;
 
 const FLOOD_FILL_LAYER = "gistda-flood-fill";
@@ -73,8 +74,11 @@ export interface MapViewProps {
   // Official GISTDA flood areas, drawn under every marker; null = layer off
   // (pass an empty collection while it loads so the layer stays mounted).
   floodAreas: FloodAreaCollection | null;
+  // Official DOH cameras (empty when the layer is off).
+  cameras: CctvCamera[];
   selectedLayer: LayerSelection;
   onSelectPlace: (place: ImportantPlace) => void;
+  onSelectCamera: (camera: CctvCamera) => void;
   onSelectAnnouncement: (a: Announcement) => void;
   route: RouteOverlay | null;
 }
@@ -96,8 +100,10 @@ export const MapView = memo(function MapView({
   places,
   announcements,
   floodAreas,
+  cameras,
   selectedLayer,
   onSelectPlace,
+  onSelectCamera,
   onSelectAnnouncement,
   route,
 }: MapViewProps) {
@@ -164,6 +170,19 @@ export const MapView = memo(function MapView({
     );
     return selected ? [...rest, { kind: "point" as const, key: selected.id, item: selected }] : rest;
   }, [reports, zoom, selectedReportId]);
+
+  // Cameras cluster like reports (the same screen-space grouping), so a
+  // zoomed-out map shows a few count pills instead of overlapping icons. The
+  // selected camera always stays its own marker.
+  const selectedCameraId = selectedLayer?.kind === "cctv" ? selectedLayer.id : null;
+  const cameraClusters = useMemo(() => {
+    const selected = cameras.find((c) => c.id === selectedCameraId);
+    const rest = clusterPoints(
+      cameras.filter((c) => c !== selected),
+      zoom,
+    );
+    return selected ? [...rest, { kind: "point" as const, key: selected.id, item: selected }] : rest;
+  }, [cameras, zoom, selectedCameraId]);
 
   // Server cells are sized per integer zoom; at fractional zooms neighbours
   // can touch, so overlapping zones merge (summed counts, worst severity).
@@ -348,6 +367,43 @@ export const MapView = memo(function MapView({
             <ZoneMarker cell={cell} label={t("zoneAriaLabel", { n: cell.count })} />
           </Marker>
         ))}
+
+        {!pickMode &&
+          cameraClusters.map((c) =>
+            c.kind === "cluster" ? (
+              <Marker
+                key={`cc:${c.key}`}
+                latitude={c.latitude}
+                longitude={c.longitude}
+                anchor="center"
+                style={{ zIndex: 1 }}
+                onClick={(e) => {
+                  e.originalEvent.stopPropagation();
+                  mapRef.current?.flyTo({
+                    center: [c.longitude, c.latitude],
+                    zoom: Math.min(CLUSTER_MAX_ZOOM, mapRef.current.getZoom() + 2),
+                    duration: 500,
+                  });
+                }}
+              >
+                <CctvClusterMarker count={c.items.length} label={t("cctvClusterAria", { n: c.items.length })} />
+              </Marker>
+            ) : (
+              <Marker
+                key={`cam:${c.key}`}
+                latitude={c.item.latitude}
+                longitude={c.item.longitude}
+                anchor="center"
+                style={{ zIndex: c.item.id === selectedCameraId ? 4 : 1 }}
+                onClick={(e) => {
+                  e.originalEvent.stopPropagation();
+                  onSelectCamera(c.item);
+                }}
+              >
+                <CctvMarker selected={c.item.id === selectedCameraId} label={t("cctvMarkerAria", { name: c.item.name })} />
+              </Marker>
+            ),
+          )}
 
         {!pickMode &&
           places.map((p) => (

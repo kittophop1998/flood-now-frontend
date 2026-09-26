@@ -3,6 +3,7 @@ import { bboxParams } from "@/services/reports-service";
 import type { BoundingBox, Vehicle } from "@/types/report";
 import type {
   Announcement,
+  CctvLayer,
   CreateSosInput,
   FloodLayer,
   GistdaPeriod,
@@ -102,6 +103,18 @@ export const announcementsService = {
 export const officialFloodService = {
   get: (query: { period: GistdaPeriod; bbox: BoundingBox }, signal?: AbortSignal) =>
     apiClient.get<FloodLayer>(`/api/v1/official/gistda/flood${toQuery({ period: query.period, ...bboxParams(query.bbox) })}`, signal),
+};
+
+// Official DOH highway cameras: metadata served (cached) by the API — the
+// browser never talks to DOH for the list.
+export const cctvService = {
+  list: (query: { bbox: BoundingBox; limit?: number }, signal?: AbortSignal) =>
+    apiClient.get<CctvLayer>(`/api/v1/cctv${toQuery({ ...bboxParams(query.bbox), limit: query.limit })}`, signal),
+  nearby: (query: { at: LatLng; radiusM: number; limit: number }, signal?: AbortSignal) =>
+    apiClient.get<CctvLayer>(
+      `/api/v1/cctv/nearby${toQuery({ lat: query.at.latitude, lng: query.at.longitude, radius_m: query.radiusM, limit: query.limit })}`,
+      signal,
+    ),
 };
 
 export const configService = {

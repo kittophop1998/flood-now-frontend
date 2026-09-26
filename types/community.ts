@@ -311,6 +311,8 @@ export interface PublicConfig {
   donation: DonationConfig | null;
   // True when the official GISTDA flood layer is configured on the API.
   gistda_flood: boolean;
+  // True when the official DOH highway camera layer is enabled on the API.
+  doh_cctv: boolean;
 }
 
 // --- Official GISTDA flood layer (GET /official/gistda/flood) ---
@@ -344,4 +346,41 @@ export interface FloodLayer {
   source_url: string;
   has_more: boolean;
   areas: FloodAreaCollection;
+}
+
+// --- Official DOH highway cameras (GET /cctv, /cctv/nearby) ---
+
+// How a camera's pictures can be seen. The API currently only returns
+// "external_link": pictures are viewed on DOH's own Highway Traffic page.
+export type CctvMode = "external_link" | "snapshot" | "live_stream";
+export type CctvStatus = "online" | "offline" | "unknown";
+
+export interface CctvCamera {
+  id: string;
+  external_id: string;
+  // The provider's label for the camera (DOH: station code).
+  name: string;
+  latitude: number;
+  longitude: number;
+  provider: "DOH";
+  highway_number?: string;
+  control_section?: string;
+  km_marker?: string;
+  mode: CctvMode;
+  external_url: string;
+  status: CctvStatus;
+  // Only from /cctv/nearby.
+  distance_m?: number;
+}
+
+export interface CctvLayer {
+  source: "DOH";
+  source_name: string;
+  source_url: string;
+  // When FloodNow last fetched the camera list from DOH (not a picture time).
+  fetched_at: string;
+  // DOH was unreachable and this is the server's last good list.
+  stale: boolean;
+  has_more: boolean;
+  cameras: CctvCamera[];
 }

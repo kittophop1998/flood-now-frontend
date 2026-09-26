@@ -1,7 +1,7 @@
 "use client";
 
 import { memo } from "react";
-import { ANNOUNCEMENT_TYPE_META, IMPORTANT_PLACE_META, OFFICIAL_ICON } from "@/lib/community-meta";
+import { ANNOUNCEMENT_TYPE_META, CCTV_META, IMPORTANT_PLACE_META, OFFICIAL_ICON } from "@/lib/community-meta";
 import { SEVERITY_META } from "@/lib/report-meta";
 import { cn } from "@/lib/utils";
 import type { Announcement, ImportantPlace } from "@/types/community";
@@ -94,6 +94,44 @@ export const AnnouncementMarker = memo(function AnnouncementMarker({
       </span>
       <span className="absolute -right-0.5 -bottom-0.5 flex size-5 items-center justify-center rounded-full border-2 border-white bg-indigo-900 text-white" aria-hidden>
         <OFFICIAL_ICON className="size-3" />
+      </span>
+    </button>
+  );
+});
+
+// Official DOH camera: a small white disc with a navy camera — quieter than
+// report markers (no fill color) and round-white unlike places (colored
+// squares) or announcements (indigo). Selected: slightly larger with a ring.
+// The button keeps a 44 px touch target around the small visual.
+export const CctvMarker = memo(function CctvMarker({ label, selected }: { label: string; selected: boolean }) {
+  const Icon = CCTV_META.icon;
+  return (
+    <button type="button" aria-label={label} aria-pressed={selected} className="group flex size-11 items-center justify-center outline-none">
+      <span
+        className={cn(
+          "flex size-7 items-center justify-center rounded-full border border-slate-200 bg-white shadow-[0_1px_4px_rgba(15,23,42,0.25)] transition-transform group-focus-visible:ring-4 group-focus-visible:ring-ring",
+          selected && "size-9 border-blue-900 ring-4 ring-blue-900/20",
+        )}
+        style={{ color: CCTV_META.color }}
+      >
+        <Icon className={selected ? "size-[18px]" : "size-4"} strokeWidth={2.25} aria-hidden />
+      </span>
+    </button>
+  );
+});
+
+// A group of cameras at low zoom: a white pill with the camera icon and the
+// count. Tapping zooms in.
+export const CctvClusterMarker = memo(function CctvClusterMarker({ count, label }: { count: number; label: string }) {
+  const Icon = CCTV_META.icon;
+  return (
+    <button type="button" aria-label={label} className="group flex h-11 items-center justify-center outline-none">
+      <span
+        className="flex h-8 items-center gap-1 rounded-full border border-slate-200 bg-white pr-2.5 pl-2 text-xs font-semibold tabular-nums shadow-[0_1px_4px_rgba(15,23,42,0.25)] group-focus-visible:ring-4 group-focus-visible:ring-ring"
+        style={{ color: CCTV_META.color }}
+      >
+        <Icon className="size-4" strokeWidth={2.25} aria-hidden />
+        {count}
       </span>
     </button>
   );
