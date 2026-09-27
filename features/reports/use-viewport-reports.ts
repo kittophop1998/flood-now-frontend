@@ -6,7 +6,7 @@ import { ApiError, isAbortError, isNetworkError } from "@/services/api-client";
 import { toListQuery, type MapFilters } from "@/lib/map-filters";
 import { readCache, writeCache } from "@/lib/offline-cache";
 import { useTranslation } from "@/lib/i18n/locale-context";
-import type { AggregateCell, BoundingBox, Report } from "@/types/report";
+import type { BoundingBox, Report } from "@/types/report";
 
 const DEBOUNCE_MS = 350;
 const POLL_INTERVAL_MS = 60_000;
@@ -14,9 +14,6 @@ const POLL_INTERVAL_MS = 60_000;
 const REGION_MAX_AGE_MS = 30_000;
 // Fetch a margin around the visible area so small pans don't refetch.
 const PAD_RATIO = 0.3;
-// Below this zoom (whole-region view) the map shows aggregated flood zones
-// (server-side grid cells + heatmap); from here in, every report is its own pin.
-export const AGGREGATE_MAX_ZOOM = 9;
 // Zoomed-out viewports cover many reports; ask for the API maximum so pins
 // aren't silently dropped (has_more still prompts to zoom in past it).
 const LIST_LIMIT = 1000;
@@ -49,14 +46,12 @@ function contains(outer: BoundingBox, inner: BoundingBox): boolean {
 
 // Loads only the reports inside the current map viewport (never the whole
 // world), refetching as the map moves: debounced, cancelling stale requests,
-// and reusing the last fetched region while it's still fresh. Zoomed out it
-// loads aggregated cells instead. When the network fails, the last fetched
+// and reusing the last fetched region while it's still fresh. Every report is
+// always its own pin, at any zoom. When the network fails, the last fetched
 // reports are shown with the time they were fetched (`staleSince`).
 export function useViewportReports(viewport: Viewport | null, filters: MapFilters) {
   const { t } = useTranslation();
   const [reports, setReports] = useState<Report[]>([]);
-  const [cells, setCells] = useState<AggregateCell[]>([]);
-  const [mode, setMode] = useState<"reports" | "aggregate">("reports");
   const [staleSince, setStaleSince] = useState<string | null>(null);
   const [status, setStatus] = useState<"idle" | "loading" | "ready" | "error">("idle");
   const [refreshing, setRefreshing] = useState(false);
@@ -79,9 +74,7 @@ export function useViewportReports(viewport: Viewport | null, filters: MapFilter
     async (force: boolean) => {
       const vp = viewportRef.current;
       if (!vp) return;
-      const aggregate = vp.zoom < AGGREGATE_MAX_ZOOM;
-      // Aggregated cells are sized per zoom level, so a new level refetches.
-      const key = aggregate ? `${filterKey}:z${Math.floor(vp.zoom)}` : filterKey;
+      const key = filterKey;
       const last = lastRegion.current;
       if (!force && last && last.key === key && Date.now() - last.at < REGION_MAX_AGE_MS && contains(last.bbox, vp.bbox)) {
         return;
@@ -96,20 +89,10 @@ export function useViewportReports(viewport: Viewport | null, filters: MapFilter
       setStatus((s) => (s === "ready" ? s : "loading"));
       try {
         const query = { ...toListQuery(filtersRef.current), bbox: region };
-        if (aggregate) {
-          const res = await reportsService.aggregate({ ...query, zoom: vp.zoom }, controller.signal);
-          setCells(res.cells);
-          setReports([]);
-          setHasMore(false);
-          setMode("aggregate");
-        } else {
-          const res = await reportsService.list({ ...query, limit: LIST_LIMIT }, controller.signal);
-          setReports(res.reports);
-          setCells([]);
-          setHasMore(res.has_more);
-          setMode("reports");
-          writeCache(CACHE_KEY, res.reports.slice(0, CACHE_MAX_REPORTS));
-        }
+        const res = await reportsService.list({ ...query, limit: LIST_LIMIT }, controller.signal);
+        setReports(res.reports);
+        setHasMore(res.has_more);
+        writeCache(CACHE_KEY, res.reports.slice(0, CACHE_MAX_REPORTS));
         lastRegion.current = { bbox: region, key, at: Date.now() };
         setStaleSince(null);
         setStatus("ready");
@@ -120,8 +103,6 @@ export function useViewportReports(viewport: Viewport | null, filters: MapFilter
         if (cached) {
           // Offline: show the last fetched reports, clearly marked as such.
           setReports(cached.data);
-          setCells([]);
-          setMode("reports");
           setStaleSince(cached.savedAt);
           setStatus("ready");
           setErrorMessage(null);
@@ -159,5 +140,5 @@ export function useViewportReports(viewport: Viewport | null, filters: MapFilter
 
   const reload = useCallback(() => load(true), [load]);
 
-  return { reports, cells, mode, staleSince, status, refreshing, hasMore, errorMessage, reload, upsertReport };
+  return { reports, staleSince, status, refreshing, hasMore, errorMessage, reload, upsertReport };
 }

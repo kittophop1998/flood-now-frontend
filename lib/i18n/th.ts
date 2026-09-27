@@ -452,8 +452,6 @@ export const th: Record<TranslationKey, string> = {
   gistdaDisclaimer: "ข้อมูลพื้นที่น้ำท่วมเชิงพื้นที่ ใช้ประกอบการประเมินสถานการณ์",
   gistdaDisclaimerRoads: "สภาพถนนจริงอาจแตกต่างกัน ควรตรวจสอบรายงานในพื้นที่ร่วมด้วย",
   gistdaLegendAria: "ชั้นข้อมูลพื้นที่น้ำท่วม GISTDA — เปิดชั้นข้อมูลแผนที่",
-  zonesNotice: "มุมมองกว้าง: แสดงพื้นที่เหตุการณ์ ซูมเข้าเพื่อดูรายงานแต่ละจุด",
-  zoneAriaLabel: "{n} รายงานในพื้นที่นี้ ซูมเข้า",
   placesZoomIn: "ซูมเข้าเพื่อดูสถานที่สำคัญ",
   placeAriaLabel: "{name}, {category}",
   announcementAriaLabel: "ประกาศทางการ: {title}",

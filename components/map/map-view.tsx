@@ -5,7 +5,7 @@ import Map, { AttributionControl, Layer, Marker, NavigationControl, Source, type
 import { setWorkerUrl } from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
 import { ReportMarker } from "@/components/map/report-marker";
-import { AnnouncementMarker, CctvClusterMarker, CctvMarker, ImportantPlaceMarker, ZoneMarker } from "@/components/map/overlay-markers";
+import { AnnouncementMarker, CctvClusterMarker, CctvMarker, ImportantPlaceMarker } from "@/components/map/overlay-markers";
 import { LocationDot } from "@/components/map/location-dot";
 import { CenterPin } from "@/components/map/center-pin";
 import { clusterPoints, CLUSTER_MAX_ZOOM } from "@/lib/cluster";
@@ -17,7 +17,7 @@ import { currentStatus } from "@/lib/report-status";
 import { useNow } from "@/features/common/use-now";
 import { useTranslation } from "@/lib/i18n/locale-context";
 import type { Viewport } from "@/features/reports/use-viewport-reports";
-import type { AggregateCell, Report } from "@/types/report";
+import type { Report } from "@/types/report";
 import type { Announcement, CctvCamera, EvaluatedRoute, FloodAreaCollection, ImportantPlace } from "@/types/community";
 
 const OPENFREEMAP_STYLE = "https://tiles.openfreemap.org/styles/liberty";
@@ -68,8 +68,6 @@ export interface MapViewProps {
   // Height (px) of the panel/sheet covering the bottom of the map. It becomes
   // camera padding so the pick pin and focused reports stay in view above it.
   bottomInset: number;
-  // Zoomed-out map: aggregated cells instead of report markers.
-  cells: AggregateCell[];
   places: ImportantPlace[];
   announcements: Announcement[];
   // Official GISTDA flood areas, drawn under every marker; null = layer off
@@ -99,7 +97,6 @@ export const MapView = memo(function MapView({
   pickMode,
   onViewportChange,
   bottomInset,
-  cells,
   places,
   announcements,
   floodAreas,
@@ -199,40 +196,6 @@ export const MapView = memo(function MapView({
     return selected ? [...rest, { kind: "point" as const, key: selected.id, item: selected }] : rest;
   }, [cameras, zoom, selectedCameraId]);
 
-  // Server cells are sized per integer zoom; at fractional zooms neighbours
-  // can touch, so overlapping zones merge (summed counts, worst severity).
-  const zones = useMemo(() => {
-    const merged = clusterPoints(
-      cells.map((c, i) => ({ ...c, id: `z${i}` })),
-      Math.min(zoom, CLUSTER_MAX_ZOOM - 1),
-    );
-    return merged.map((m): AggregateCell & { key: string } => {
-      if (m.kind === "point") return { ...m.item, key: m.key };
-      const worst = m.items.reduce((a, b) => (severityRank(b.max_severity) > severityRank(a.max_severity) ? b : a));
-      return {
-        key: m.key,
-        latitude: m.latitude,
-        longitude: m.longitude,
-        count: m.items.reduce((n, c) => n + c.count, 0),
-        severe_count: m.items.reduce((n, c) => n + c.severe_count, 0),
-        max_severity: worst.max_severity,
-        latest_update_at: m.items.map((c) => c.latest_update_at).sort().at(-1)!,
-      };
-    });
-  }, [cells, zoom]);
-
-  const heat = useMemo(
-    () => ({
-      type: "FeatureCollection" as const,
-      features: cells.map((c) => ({
-        type: "Feature" as const,
-        properties: { w: c.count * severityRank(c.max_severity) },
-        geometry: { type: "Point" as const, coordinates: [c.longitude, c.latitude] },
-      })),
-    }),
-    [cells],
-  );
-
   const areas = useMemo(
     () => ({
       type: "FeatureCollection" as const,
@@ -292,30 +255,6 @@ export const MapView = memo(function MapView({
         <AttributionControl position="bottom-left" compact />
         <NavigationControl position="bottom-right" showCompass={false} />
 
-        {cells.length > 0 && (
-          <Source id="report-heat" type="geojson" data={heat}>
-            <Layer
-              id="report-heat"
-              type="heatmap"
-              paint={{
-                "heatmap-weight": ["interpolate", ["linear"], ["get", "w"], 0, 0, 40, 1],
-                "heatmap-intensity": ["interpolate", ["linear"], ["zoom"], 0, 1, 11, 2.5],
-                "heatmap-radius": ["interpolate", ["linear"], ["zoom"], 0, 10, 11, 45],
-                "heatmap-opacity": 0.55,
-                "heatmap-color": [
-                  "interpolate",
-                  ["linear"],
-                  ["heatmap-density"],
-                  0, "rgba(14,165,233,0)",
-                  0.25, "rgba(14,165,233,0.55)",
-                  0.55, "rgba(245,158,11,0.75)",
-                  0.85, "rgba(220,38,38,0.85)",
-                ],
-              }}
-            />
-          </Source>
-        )}
-
         {/* Mounted once while the layer is on; new periods/regions only swap
             its data, never tear the layer down. */}
         {floodAreas && (
@@ -365,23 +304,6 @@ export const MapView = memo(function MapView({
             />
           </Source>
         )}
-
-        {zones.map((cell) => (
-          <Marker
-            key={cell.key}
-            latitude={cell.latitude}
-            longitude={cell.longitude}
-            anchor="center"
-            style={{ zIndex: 1 }}
-            onClick={(e) => {
-              e.originalEvent.stopPropagation();
-              if (pickMode) return;
-              mapRef.current?.flyTo({ center: [cell.longitude, cell.latitude], zoom: Math.min(15, mapRef.current.getZoom() + 2.5), duration: 600 });
-            }}
-          >
-            <ZoneMarker cell={cell} label={t("zoneAriaLabel", { n: cell.count })} />
-          </Marker>
-        ))}
 
         {!pickMode &&
           cameraClusters.map((c) =>

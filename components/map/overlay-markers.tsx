@@ -3,43 +3,8 @@
 import { memo } from "react";
 import { CCTV_META, IMPORTANT_PLACE_META, OFFICIAL_ICON } from "@/lib/community-meta";
 import { AnnouncementTypeIcon } from "@/components/community/badges";
-import { SEVERITY_META } from "@/lib/report-meta";
 import { cn } from "@/lib/utils";
 import type { Announcement, ImportantPlace } from "@/types/community";
-import type { AggregateCell } from "@/types/report";
-
-// Aggregated flood zone for the zoomed-out map: a count bubble whose ring
-// shows the worst severity inside (with a severity icon when severe, so
-// color is never the only cue). Tapping zooms in.
-export const ZoneMarker = memo(function ZoneMarker({ cell, label }: { cell: AggregateCell; label: string }) {
-  const rank = SEVERITY_META[cell.max_severity].rank;
-  const SevIcon = SEVERITY_META[cell.max_severity].icon;
-  const size = cell.count >= 100 ? "size-14" : cell.count >= 20 ? "size-12" : "size-10";
-  return (
-    <button type="button" aria-label={label} className="group relative flex items-center justify-center rounded-full outline-none">
-      <span
-        className={cn(
-          "flex items-center justify-center rounded-full border-[3px] bg-slate-900/85 text-sm font-semibold text-white shadow-lg tabular-nums group-focus-visible:ring-4 group-focus-visible:ring-ring",
-          size,
-          rank === 4 ? "border-red-500" : rank === 3 ? "border-orange-400" : rank === 2 ? "border-amber-300" : "border-sky-300",
-        )}
-      >
-        {cell.count}
-      </span>
-      {rank >= 3 && (
-        <span
-          className={cn(
-            "absolute -top-1 -right-1 flex size-5 items-center justify-center rounded-full border-2 border-white text-white",
-            rank === 4 ? "bg-red-600" : "bg-orange-500",
-          )}
-          aria-hidden
-        >
-          <SevIcon className="size-3" />
-        </span>
-      )}
-    </button>
-  );
-});
 
 // Important places are rounded squares (reports are circles) so the two
 // layers never read as the same thing.

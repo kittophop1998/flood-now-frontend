@@ -465,8 +465,6 @@ export const en = {
   gistdaDisclaimer: "Area-level flood extent to help assess the situation.",
   gistdaDisclaimerRoads: "Actual road conditions may differ — check local reports too.",
   gistdaLegendAria: "GISTDA flood areas layer — open map layers",
-  zonesNotice: "Zoomed out: showing incident zones. Zoom in for individual reports.",
-  zoneAriaLabel: "{n} reports in this area. Zoom in",
   placesZoomIn: "Zoom in to see important places",
   placeAriaLabel: "{name}, {category}",
   announcementAriaLabel: "Official announcement: {title}",

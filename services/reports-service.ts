@@ -1,6 +1,5 @@
 import { apiClient, toQuery } from "@/services/api-client";
 import type {
-  AggregateResult,
   BoundingBox,
   ConfirmReportInput,
   CreateReportInput,
@@ -28,19 +27,6 @@ export const reportsService = {
         statuses: query.statuses,
         updated_since: query.updatedSince,
         limit: query.limit,
-      })}`,
-      signal,
-    ),
-
-  // Zoomed-out map: reports grouped into grid cells sized for `zoom`.
-  aggregate: (query: Omit<ListReportsQuery, "limit" | "updatedSince"> & { bbox: BoundingBox; zoom: number }, signal?: AbortSignal) =>
-    apiClient.get<AggregateResult>(
-      `/api/v1/reports/aggregate${toQuery({
-        ...bboxParams(query.bbox),
-        zoom: Math.max(0, Math.min(16, Math.floor(query.zoom))),
-        types: query.types,
-        severities: query.severities,
-        statuses: query.statuses,
       })}`,
       signal,
     ),

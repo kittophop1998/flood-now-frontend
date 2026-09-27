@@ -203,22 +203,6 @@ export interface AppNotification {
   report: Report;
 }
 
-// Zoomed-out map: open reports grouped into grid cells (GET /reports/aggregate).
-export interface AggregateCell {
-  latitude: number;
-  longitude: number;
-  count: number;
-  severe_count: number;
-  max_severity: Severity;
-  latest_update_at: string;
-}
-
-export interface AggregateResult {
-  cells: AggregateCell[];
-  cell_size_deg: number;
-  total: number;
-}
-
 export const PROBLEM_REASONS = [
   "false_information",
   "wrong_location",

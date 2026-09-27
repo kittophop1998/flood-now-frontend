@@ -3,7 +3,7 @@
 import dynamic from "next/dynamic";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
-import { CircleAlert, CloudUpload, Layers, LocateFixed, MapPinOff, RefreshCw, SearchX, Siren, WifiOff, ZoomIn } from "lucide-react";
+import { CircleAlert, CloudUpload, LocateFixed, MapPinOff, RefreshCw, SearchX, Siren, WifiOff, ZoomIn } from "lucide-react";
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle } from "@/components/ui/drawer";
 import { BottomNav, type AppTab } from "@/components/bottom-nav";
 import { InstallPrompt } from "@/components/install-prompt";
@@ -163,7 +163,7 @@ export default function HomePage() {
   // One idempotency key per report form, reused across retries.
   const createClientId = useRef<string | null>(null);
 
-  const { reports, cells, mode: mapMode, staleSince, status, refreshing, hasMore, errorMessage, reload, upsertReport } =
+  const { reports, staleSince, status, refreshing, hasMore, errorMessage, reload, upsertReport } =
     useViewportReports(viewport, filters);
   const layerData = useViewportLayers(viewport, layers);
   // Official GISTDA flood areas: only when the API has it configured and the
@@ -537,7 +537,6 @@ export default function HomePage() {
           pickMode={picking}
           onViewportChange={setViewport}
           bottomInset={bottomInset}
-          cells={layers.reports ? cells : []}
           places={layerData.places}
           announcements={layerData.announcements}
           floodAreas={gistdaOn ? (gistda.layer?.areas ?? EMPTY_FLOOD_AREAS) : null}
@@ -665,11 +664,8 @@ export default function HomePage() {
             {layers.reports && status === "ready" && hasMore && (
               <MapNotice icon={<ZoomIn />}>{t("zoomInForMore")}</MapNotice>
             )}
-            {layers.reports && status === "ready" && mapMode === "aggregate" && cells.length > 0 && !sheetOpen && (
-              <MapNotice icon={<Layers />}>{t("zonesNotice")}</MapNotice>
-            )}
             {layerData.placesStatus === "zoom" && <MapNotice icon={<ZoomIn />}>{t("placesZoomIn")}</MapNotice>}
-            {layers.reports && status === "ready" && !refreshing && visibleReports.length === 0 && cells.length === 0 && !sheetOpen && !layerSheetOpen && (
+            {layers.reports && status === "ready" && !refreshing && visibleReports.length === 0 && !sheetOpen && !layerSheetOpen && (
               <MapNotice
                 icon={<SearchX />}
                 action={filtersActive ? { label: t("clearFilters"), onClick: () => setFilters(DEFAULT_FILTERS) } : undefined}
