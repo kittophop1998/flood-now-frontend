@@ -12,7 +12,7 @@ export const DEFAULT_CENTER = { latitude: 13.7563, longitude: 100.5018 };
 
 // `fresh` is for an explicit "where am I now" request: accept only a very
 // recent fix so a moving user isn't sent back to where they were a minute ago.
-function requestPosition(onDone: (state: GeolocationState) => void, fresh = false) {
+export function requestPosition(onDone: (state: GeolocationState) => void, fresh = false) {
   if (typeof navigator === "undefined" || !navigator.geolocation) {
     onDone({ status: "unavailable" });
     return;

@@ -754,6 +754,7 @@ export const th: Record<TranslationKey, string> = {
   adminFieldLat: "ละติจูด",
   adminFieldLng: "ลองจิจูด",
   adminFieldRadius: "รัศมี (ม.)",
+  adminPickOnMap: "เลือกจากแผนที่",
   adminPublishNow: "เผยแพร่ทันที",
   adminCreate: "สร้าง",
   adminPublish: "เผยแพร่",

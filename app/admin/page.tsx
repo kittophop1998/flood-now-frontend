@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { LocaleToggle } from "@/components/locale-toggle";
+import { CoordinatePickerButton } from "@/components/admin/coordinate-picker";
 import { OfficialBadge, PlaceStatusBadge, ToneBadge, UserAddedBadge } from "@/components/community/badges";
 import { ReportSummary } from "@/components/report/report-card";
 import { EmptyState } from "@/components/views/view-shell";
@@ -408,6 +409,10 @@ function AnnouncementsPanel({ token }: { token: string }) {
           {field("longitude", t("adminFieldLng"), { inputMode: "decimal" })}
           {field("radius_m", t("adminFieldRadius"), { inputMode: "numeric" })}
         </div>
+        <CoordinatePickerButton
+          value={numberOrUndefined(form.latitude) != null && numberOrUndefined(form.longitude) != null ? { latitude: Number(form.latitude), longitude: Number(form.longitude) } : null}
+          onPick={(p) => setForm((f) => ({ ...f, latitude: p.latitude.toFixed(6), longitude: p.longitude.toFixed(6) }))}
+        />
         <div className="grid grid-cols-1 gap-3 min-[420px]:grid-cols-2">
           {field("starts_at", t("announcementStarts"), { type: "datetime-local" })}
           {field("ends_at", t("announcementEnds"), { type: "datetime-local" })}
@@ -553,6 +558,10 @@ function PlacesPanel({ token }: { token: string }) {
           {field("latitude", t("adminFieldLat"), { inputMode: "decimal" })}
           {field("longitude", t("adminFieldLng"), { inputMode: "decimal" })}
         </div>
+        <CoordinatePickerButton
+          value={numberOrUndefined(form.latitude) != null && numberOrUndefined(form.longitude) != null ? { latitude: Number(form.latitude), longitude: Number(form.longitude) } : null}
+          onPick={(p) => setForm((f) => ({ ...f, latitude: p.latitude.toFixed(6), longitude: p.longitude.toFixed(6) }))}
+        />
         {field("address", t("ipAddress"), { maxLength: 300 })}
         {field("contact", t("contactLabel"), { maxLength: 120 })}
         {field("source", t("ipSource"), { maxLength: 200 })}

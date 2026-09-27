@@ -767,6 +767,7 @@ export const en = {
   adminFieldLat: "Latitude",
   adminFieldLng: "Longitude",
   adminFieldRadius: "Radius (m)",
+  adminPickOnMap: "Pick on map",
   adminPublishNow: "Publish now",
   adminCreate: "Create",
   adminPublish: "Publish",
