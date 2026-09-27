@@ -59,6 +59,11 @@ export type ReportStatus = (typeof REPORT_STATUSES)[number];
 export const CONFIRMATION_STATUSES = ["still_active", "cleared"] as const;
 export type ConfirmationStatus = (typeof CONFIRMATION_STATUSES)[number];
 
+// Lightweight social reactions — feedback only, never severity/trust/freshness/
+// route-safety/moderation input (docs/api-spec.md).
+export const REACTION_TYPES = ["like", "support"] as const;
+export type ReactionType = (typeof REACTION_TYPES)[number];
+
 export type GeometryType = "point" | "road_segment" | "area";
 
 export interface Report {
@@ -91,6 +96,9 @@ export interface Report {
   is_expired: boolean;
   still_active_count: number;
   cleared_count: number;
+  // Reaction totals — cosmetic only, see REACTION_TYPES above.
+  like_count: number;
+  support_count: number;
   // Present only on location-based responses (nearby, duplicates).
   distance_m?: number;
 }
@@ -127,6 +135,11 @@ export interface ConditionUpdate {
 export interface ConfirmReportInput extends ConditionUpdate {
   device_id: string;
   status: ConfirmationStatus;
+}
+
+export interface ReactionInput {
+  device_id: string;
+  type: ReactionType;
 }
 
 export interface BoundingBox {

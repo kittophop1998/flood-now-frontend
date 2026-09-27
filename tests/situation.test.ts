@@ -45,6 +45,8 @@ function report(overrides: Partial<Report> = {}): Report {
     is_expired: false,
     still_active_count: 0,
     cleared_count: 0,
+    like_count: 0,
+    support_count: 0,
     distance_m: 2000,
     ...overrides,
   };

@@ -6,6 +6,7 @@ import { applyClientFilters, DEFAULT_FILTERS, isRecentlyUpdated, toggleChipTypes
 import { CATEGORY_META, categoryLabel, hasKnownPassability, reportTitle, suggestPassability } from "@/lib/report-meta";
 import { createReportFormSchema } from "@/lib/report-schema";
 import { isInCooldown, RECONFIRM_COOLDOWN_MS } from "@/lib/confirmed-reports";
+import { nextReaction } from "@/lib/report-reactions";
 import { conditionChanges, conditionDraftFrom } from "@/lib/condition-update";
 import { formatDistance } from "@/lib/distance";
 import { freshnessLine } from "@/lib/freshness";
@@ -50,6 +51,8 @@ function report(overrides: Partial<Report> = {}): Report {
     is_expired: false,
     still_active_count: 0,
     cleared_count: 0,
+    like_count: 0,
+    support_count: 0,
     ...overrides,
   };
 }
@@ -211,4 +214,12 @@ test("isRecentlyUpdated: last 2 hours of last_verified_at", () => {
   const now = new Date("2026-09-26T12:00:00Z");
   assert.equal(isRecentlyUpdated({ last_verified_at: "2026-09-26T10:01:00Z" }, now), true);
   assert.equal(isRecentlyUpdated({ last_verified_at: "2026-09-26T09:59:00Z" }, now), false);
+});
+
+test("nextReaction: tap toggles off, tapping the other type switches", () => {
+  assert.equal(nextReaction(null, "like"), "like");
+  assert.equal(nextReaction("like", "like"), null, "tapping the selected reaction again clears it");
+  assert.equal(nextReaction("like", "support"), "support", "tapping the other reaction switches");
+  assert.equal(nextReaction("support", "support"), null);
+  assert.equal(nextReaction(null, "support"), "support");
 });

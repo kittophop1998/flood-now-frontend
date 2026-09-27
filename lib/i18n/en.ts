@@ -225,6 +225,10 @@ export const en = {
   updatePhotoHint: "Optional · replaces the current photo · resized before upload",
   updateSubmit: "Send update",
   updateSuccess: "Thanks — the report now shows your update.",
+  reactionsHeading: "Send the reporter some encouragement",
+  reactionLike: "Like",
+  reactionSupport: "Support",
+  failedReaction: "Couldn't save your reaction.",
 
   // Report form
   newReportTitle: "New report",

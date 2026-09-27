@@ -6,6 +6,7 @@ import { Bell, BellRing, CircleCheck, CircleX, Clock, Flag, Loader2, MapPin, Nav
 import { Button } from "@/components/ui/button";
 import { DetailLinkButton, DetailList, DetailPopup, DetailRow, DetailSection } from "@/components/ui/detail-popup";
 import { ReportProblemDialog } from "@/components/report/report-problem-dialog";
+import { ReportReactions } from "@/components/report/report-reactions";
 import { ReportUpdateDialog } from "@/components/report/report-update-dialog";
 import { CommunityBadge } from "@/components/community/badges";
 import { NearbyCctv } from "@/components/layers/layer-detail";
@@ -285,6 +286,8 @@ export function ReportDetailPopup({
           )}
         </div>
       </section>
+
+      <ReportReactions report={report} onReacted={onConfirmed} />
 
       {report.description?.trim() && (
         <DetailSection title={t("descriptionHeading")}>

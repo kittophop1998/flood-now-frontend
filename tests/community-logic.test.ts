@@ -124,6 +124,8 @@ test("share text is a deterministic summary of the incident", () => {
     is_expired: false,
     still_active_count: 3,
     cleared_count: 0,
+    like_count: 0,
+    support_count: 0,
   } satisfies Report;
   const text = reportShareText(t, report, now);
   assert.equal(

@@ -218,6 +218,10 @@ export const th: Record<TranslationKey, string> = {
   updatePhotoHint: "ไม่บังคับ · แทนรูปเดิม · ย่อขนาดก่อนอัปโหลด",
   updateSubmit: "ส่งอัปเดต",
   updateSuccess: "ขอบคุณ รายงานแสดงข้อมูลที่คุณอัปเดตแล้ว",
+  reactionsHeading: "ส่งกำลังใจให้ผู้รายงาน",
+  reactionLike: "ถูกใจ",
+  reactionSupport: "ให้กำลังใจ",
+  failedReaction: "ส่งไม่สำเร็จ ลองอีกครั้ง",
 
   newReportTitle: "รายงานใหม่",
   stepLocation: "ตำแหน่ง",
