@@ -13,9 +13,12 @@ import {
   HandHeart,
   House,
   Info,
+  LightbulbOff,
   MapPin,
   OctagonAlert,
+  Road,
   Siren,
+  TrafficCone,
   TriangleAlert,
   Truck,
   Waves,
@@ -27,6 +30,7 @@ import type {
   PassLevel,
   Passability,
   Report,
+  ReportDetails,
   ReportStatus,
   ReportType,
   Severity,
@@ -37,7 +41,8 @@ import { VEHICLES } from "@/types/report";
 
 // Which optional field groups a category shows in the form and detail view.
 // Mirrors the server's normalization (apps/api/internal/domain/report):
-// water depth only for floods, passability only for road incidents.
+// water depth only for floods, passability only for road incidents; the
+// category-specific details are in CATEGORY_DETAILS.
 export interface CategoryFields {
   waterDepth: boolean;
   passability: boolean;
@@ -49,6 +54,9 @@ export interface CategoryMeta {
   // Marker fill; always paired with the icon so color is never the only cue.
   color: string;
   fields: CategoryFields;
+  // A place people go to (shelter, aid point) rather than something
+  // happening; never counted as a nearby "incident".
+  facility?: boolean;
 }
 
 const ROAD: CategoryFields = { waterDepth: false, passability: true, helpDetails: false };
@@ -60,12 +68,77 @@ export const CATEGORY_META: Record<ReportType, CategoryMeta> = {
   accident: { icon: TriangleAlert, color: "#c2410c", fields: ROAD },
   vehicle_stalled: { icon: CarFront, color: "#475569", fields: ROAD },
   obstruction: { icon: Construction, color: "#a16207", fields: ROAD },
+  road_damage: { icon: Road, color: "#78350f", fields: ROAD },
+  construction: { icon: TrafficCone, color: "#ea580c", fields: ROAD },
+  traffic_signal_issue: { icon: LightbulbOff, color: "#0e7490", fields: PLAIN },
   power_outage: { icon: ZapOff, color: "#6d28d9", fields: PLAIN },
   help_needed: { icon: Siren, color: "#dc2626", fields: { ...PLAIN, helpDetails: true } },
-  shelter: { icon: House, color: "#0f766e", fields: PLAIN },
-  aid_point: { icon: HandHeart, color: "#15803d", fields: PLAIN },
+  shelter: { icon: House, color: "#0f766e", fields: PLAIN, facility: true },
+  aid_point: { icon: HandHeart, color: "#15803d", fields: PLAIN, facility: true },
   other: { icon: MapPin, color: "#64748b", fields: PLAIN },
 };
+
+// Category-specific details (docs/api-spec.md "Category details"), in the
+// order the form asks and the detail sheet shows them. Mirrors detailRules in
+// apps/api/internal/domain/report/details.go. All optional. The first entry
+// is a category's headline detail (see keyDetail).
+export interface DetailField {
+  key: string;
+  options: readonly string[];
+}
+const LANES = ["none", "one", "multiple", "all"] as const;
+export const CATEGORY_DETAILS: Partial<Record<ReportType, readonly DetailField[]>> = {
+  accident: [
+    { key: "lanes_blocked", options: LANES },
+    { key: "traffic_impact", options: ["light", "slow", "standstill"] },
+  ],
+  road_closed: [
+    { key: "closure", options: ["full", "partial"] },
+    { key: "direction", options: ["both", "one_way"] },
+  ],
+  obstruction: [{ key: "obstruction_type", options: ["fallen_tree", "debris", "landslide", "fallen_object", "other"] }],
+  road_damage: [{ key: "damage_type", options: ["pothole", "subsidence", "surface_damage", "other"] }],
+  construction: [{ key: "lanes_blocked", options: LANES }],
+  traffic_signal_issue: [{ key: "signal_issue", options: ["not_working", "flashing", "malfunction"] }],
+};
+
+export function detailFields(type: ReportType): readonly DetailField[] {
+  return CATEGORY_DETAILS[type] ?? [];
+}
+
+export function detailLabel(t: TranslateFn, key: string): string {
+  return t(`detail.${key}` as TranslationKey);
+}
+
+export function detailValueLabel(t: TranslateFn, key: string, value: string): string {
+  return t(`detailValue.${key}.${value}` as TranslationKey);
+}
+
+// Only the details this category has, with values it allows — anything else
+// (a stale draft, an unknown value from a newer API) is ignored.
+export function knownDetails(type: ReportType, details: ReportDetails | null | undefined): [DetailField, string][] {
+  if (!details) return [];
+  return detailFields(type).flatMap((f) => {
+    const v = details[f.key];
+    return v && f.options.includes(v) ? [[f, v] as [DetailField, string]] : [];
+  });
+}
+
+// The one detail that matters most for a category, as a short phrase
+// ("Knee-deep", "1 lane blocked", "Full closure") — or null.
+export function keyDetail(t: TranslateFn, report: Pick<Report, "type" | "water_depth" | "details">): string | null {
+  if (report.type === "flooded") {
+    return report.water_depth && report.water_depth !== "unknown" ? waterDepthLabel(t, report.water_depth) : null;
+  }
+  const first = knownDetails(report.type, report.details)[0];
+  return first ? detailValueLabel(t, first[0].key, first[1]) : null;
+}
+
+// Whether a category affects getting around (road incidents and broken
+// traffic signals) — used to rank nearby incidents; mirrors the route rules.
+export function impactsTravel(type: ReportType): boolean {
+  return CATEGORY_META[type].fields.passability || type === "traffic_signal_issue";
+}
 
 export function categoryLabel(t: TranslateFn, type: ReportType): string {
   return t(`category.${type}`);
@@ -168,11 +241,10 @@ export function statusLabel(t: TranslateFn, status: ReportStatus): string {
 
 // Short headline answering "what's happening": the category plus the one
 // detail that matters most for it.
-export function reportTitle(t: TranslateFn, report: Pick<Report, "type" | "water_depth" | "people_count">): string {
+export function reportTitle(t: TranslateFn, report: Pick<Report, "type" | "water_depth" | "people_count" | "details">): string {
   const label = categoryLabel(t, report.type);
-  if (report.type === "flooded" && report.water_depth && report.water_depth !== "unknown") {
-    return `${label} · ${waterDepthLabel(t, report.water_depth)}`;
-  }
+  const detail = keyDetail(t, report);
+  if (detail) return `${label} · ${detail}`;
   if (report.type === "help_needed" && report.people_count) {
     return `${label} · ${t(report.people_count === 1 ? "personCountOne" : "personCountOther", { n: report.people_count })}`;
   }

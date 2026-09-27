@@ -1,30 +1,33 @@
 "use client";
 
 import { useState, type ReactNode } from "react";
+import { Clock, OctagonAlert, Zap } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import {
+  CATEGORY_CHIPS,
   DEFAULT_FILTERS,
   RADIUS_OPTIONS_KM,
-  UPDATED_WITHIN_OPTIONS_MIN,
+  RECENT_WINDOW_MIN,
+  SEVERE,
+  toggleChipTypes,
   type MapFilters,
 } from "@/lib/map-filters";
-import { CATEGORY_META, SEVERITY_META, VEHICLE_ICON, categoryLabel, severityLabel, vehicleLabel } from "@/lib/report-meta";
+import { CATEGORY_META, VEHICLE_ICON, vehicleLabel } from "@/lib/report-meta";
 import { useTranslation } from "@/lib/i18n/locale-context";
+import type { TranslationKey } from "@/lib/i18n/locale";
 import { cn } from "@/lib/utils";
-import { REPORT_TYPES, SEVERITIES, VEHICLES } from "@/types/report";
+import { VEHICLES } from "@/types/report";
 
 const optionClass =
   "inline-flex min-h-11 items-center gap-1.5 rounded-xl border px-3 text-sm font-medium transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring";
 const on = "border-primary bg-accent text-primary";
 const off = "bg-background hover:bg-muted";
 
-function toggle<T>(list: T[], value: T): T[] {
-  return list.includes(value) ? list.filter((v) => v !== value) : [...list, value];
-}
-
-// Advanced filters. Edits a local copy and applies it on "Show results" so
-// the map doesn't refetch on every tap.
+// Every filter beyond the map's two quick toggles: incident type, status
+// (ongoing / latest / severe), distance and "can't pass by" vehicle. Edits a
+// local copy and applies it on "Show results" so the map doesn't refetch on
+// every tap.
 export function FilterSheet({
   open,
   onOpenChange,
@@ -55,50 +58,47 @@ export function FilterSheet({
         </DialogHeader>
         <div className="flex min-h-0 flex-1 flex-col gap-5 overflow-y-auto px-4 pb-4">
           <Group title={t("filterCategories")}>
-            {REPORT_TYPES.map((type) => {
-              const Icon = CATEGORY_META[type].icon;
-              const selected = draft.types.includes(type);
+            {CATEGORY_CHIPS.map((chip) => {
+              const meta = CATEGORY_META[chip.id === "legacy" ? "other" : chip.types[0]];
+              const Icon = meta.icon;
+              const selected = chip.types.every((type) => draft.types.includes(type));
               return (
                 <button
-                  key={type}
+                  key={chip.id}
                   type="button"
                   aria-pressed={selected}
-                  onClick={() => setDraft({ ...draft, types: toggle(draft.types, type) })}
+                  onClick={() => setDraft({ ...draft, types: toggleChipTypes(draft.types, chip.types) })}
                   className={cn(optionClass, selected ? on : off)}
                 >
-                  <Icon className="size-4" style={{ color: CATEGORY_META[type].color }} aria-hidden />
-                  {categoryLabel(t, type)}
+                  <Icon className="size-4" style={{ color: meta.color }} aria-hidden />
+                  {t(`chip.${chip.id}` as TranslationKey)}
                 </button>
               );
             })}
           </Group>
 
-          <Group title={t("filterSeverity")}>
-            {SEVERITIES.map((severity) => {
-              const Icon = SEVERITY_META[severity].icon;
-              const selected = draft.severities.includes(severity);
-              return (
-                <button
-                  key={severity}
-                  type="button"
-                  aria-pressed={selected}
-                  onClick={() => setDraft({ ...draft, severities: toggle(draft.severities, severity) })}
-                  className={cn(optionClass, selected ? on : off)}
-                >
-                  <Icon className="size-4" aria-hidden />
-                  {severityLabel(t, severity)}
-                </button>
-              );
-            })}
-          </Group>
-
-          <Group title={t("filterStatus")} radio>
-            <Radio selected={!draft.activeOnly} onClick={() => setDraft({ ...draft, activeOnly: false })}>
-              {t("filterStatusAll")}
-            </Radio>
-            <Radio selected={draft.activeOnly} onClick={() => setDraft({ ...draft, activeOnly: true })}>
-              {t("filterStatusActive")}
-            </Radio>
+          <Group title={t("filterStatus")}>
+            <Toggle
+              selected={draft.activeOnly}
+              icon={<Zap className="size-4" aria-hidden />}
+              onClick={() => setDraft({ ...draft, activeOnly: !draft.activeOnly })}
+            >
+              {t("quick.active")}
+            </Toggle>
+            <Toggle
+              selected={draft.updatedWithinMin != null}
+              icon={<Clock className="size-4" aria-hidden />}
+              onClick={() => setDraft({ ...draft, updatedWithinMin: draft.updatedWithinMin != null ? null : RECENT_WINDOW_MIN })}
+            >
+              {t("quick.recent")}
+            </Toggle>
+            <Toggle
+              selected={draft.severities.length > 0}
+              icon={<OctagonAlert className="size-4" aria-hidden />}
+              onClick={() => setDraft({ ...draft, severities: draft.severities.length > 0 ? [] : SEVERE })}
+            >
+              {t("quick.severe")}
+            </Toggle>
           </Group>
 
           <Group title={t("filterDistance")} radio note={canFilterNearMe ? undefined : t("nearMeNeedsLocation")}>
@@ -113,17 +113,6 @@ export function FilterSheet({
                 onClick={() => setDraft({ ...draft, nearMe: true, radiusKm: km })}
               >
                 {t("kilometersValue", { n: km })}
-              </Radio>
-            ))}
-          </Group>
-
-          <Group title={t("filterUpdated")} radio>
-            <Radio selected={draft.updatedWithinMin == null} onClick={() => setDraft({ ...draft, updatedWithinMin: null })}>
-              {t("filterUpdatedAny")}
-            </Radio>
-            {UPDATED_WITHIN_OPTIONS_MIN.map((min) => (
-              <Radio key={min} selected={draft.updatedWithinMin === min} onClick={() => setDraft({ ...draft, updatedWithinMin: min })}>
-                {t("withinHours", { n: min / 60 })}
               </Radio>
             ))}
           </Group>
@@ -174,6 +163,15 @@ function Group({ title, note, radio, children }: { title: string; note?: string;
       </div>
       {note && <p className="text-xs text-muted-foreground">{note}</p>}
     </section>
+  );
+}
+
+function Toggle({ selected, icon, onClick, children }: { selected: boolean; icon: ReactNode; onClick: () => void; children: ReactNode }) {
+  return (
+    <button type="button" aria-pressed={selected} onClick={onClick} className={cn(optionClass, selected ? on : off)}>
+      {icon}
+      {children}
+    </button>
   );
 }
 

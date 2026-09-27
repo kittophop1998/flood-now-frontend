@@ -51,7 +51,7 @@ export function MoreView({
 }) {
   const { t } = useTranslation();
   return (
-    <ViewShell title={t("moreTitle")} hidden={hidden}>
+    <ViewShell title={t("moreTitle")} subtitle={t("appTagline")} hidden={hidden}>
       <button
         type="button"
         onClick={() => onOpen("sos")}

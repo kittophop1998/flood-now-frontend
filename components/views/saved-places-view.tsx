@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
-import { AreaLevelBadge, StaleDataNote } from "@/components/community/badges";
+import { AreaLevelBadge, AreaTopLine, StaleDataNote } from "@/components/community/badges";
 import { LocationField, type LocationValue } from "@/components/community/location-field";
 import { EmptyState, ViewShell } from "@/components/views/view-shell";
 import { useNow } from "@/features/common/use-now";
@@ -270,8 +270,11 @@ export function SavedPlacesView({
                 </span>
                 <div className="min-w-0 flex-1">
                   <p className="truncate font-semibold">{p.name}</p>
+                  <div className="mt-1">
+                    <AreaTopLine area={p.area} />
+                  </div>
                   <div className="mt-1 flex flex-wrap items-center gap-1.5">
-                    <AreaLevelBadge level={p.area.level} />
+                    {p.area.level !== "clear" && <AreaLevelBadge level={p.area.level} />}
                     <span className="text-xs text-muted-foreground">
                       {t(p.area.active_count === 1 ? "areaActiveCountOne" : "areaActiveCount", { n: p.area.active_count, d: formatDistance(p.watch_radius_m, t) })}
                     </span>

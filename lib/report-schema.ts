@@ -16,6 +16,7 @@ export function createReportFormSchema(t: TranslateFn) {
       .object({ walk: passLevel, motorcycle: passLevel, sedan: passLevel, suv_pickup: passLevel })
       .nullable()
       .optional(),
+    details: z.record(z.string(), z.string()).nullable().optional(),
     description: z.string().max(2000, t("descriptionTooLong")).nullable().optional(),
     people_count: z.number().int().min(0).max(999).nullable().optional(),
     has_child: z.boolean().nullable().optional(),

@@ -13,6 +13,7 @@ import { FilterSheet } from "@/components/map/filter-sheet";
 import { LayersSheet } from "@/components/map/layers-sheet";
 import { LocationPicker } from "@/components/map/location-picker";
 import { RouteSummary } from "@/components/map/route-summary";
+import { SituationIntro, SituationSheet } from "@/components/map/situation-sheet";
 import { ReportForm, type ReportDraft } from "@/components/report/report-form";
 import { ReportDetailPopup } from "@/components/report/report-detail";
 import { AnnouncementPopup, CctvPopup, GistdaFloodPopup, ImportantPlacePopup } from "@/components/layers/layer-detail";
@@ -33,6 +34,7 @@ import { SyncView } from "@/components/views/sync-view";
 import type { MapFocus, RouteOverlay } from "@/components/map/map-view";
 import { useViewportReports, type Viewport } from "@/features/reports/use-viewport-reports";
 import { useCreateReport } from "@/features/reports/use-create-report";
+import { useNearbyReports } from "@/features/reports/use-location-lookups";
 import { useConfirmReport } from "@/features/reports/use-confirm-report";
 import { useGeolocation, DEFAULT_CENTER } from "@/features/reports/use-geolocation";
 import { useAlerts } from "@/features/alerts/use-alerts";
@@ -53,6 +55,7 @@ import { reportsService } from "@/services/reports-service";
 import { setConfirmation } from "@/lib/confirmed-reports";
 import { newClientId } from "@/lib/outbox";
 import { DEFAULT_FILTERS, applyClientFilters, type MapFilters } from "@/lib/map-filters";
+import { SITUATION_RADIUS_M, summarizeSituation } from "@/lib/situation";
 import { useTranslation } from "@/lib/i18n/locale-context";
 import type { BoundingBox, CreateReportInput, Place, Report } from "@/types/report";
 import type { Announcement, CctvCamera, FloodAreaProperties, ImportantPlace, LatLng, RouteEvaluation, SavedPlace } from "@/types/community";
@@ -80,6 +83,24 @@ type LayerSelection =
 
 const RADIUS_ZOOM: Record<number, number> = { 1: 15, 3: 13, 5: 12, 10: 11 };
 const WATCH_ZOOM: Record<number, number> = { 1000: 14, 3000: 13, 5000: 12 };
+
+// The one-time intro is remembered per device (best-effort; a private window
+// just sees it again).
+const INTRO_SEEN_KEY = "floodnow:intro-seen";
+function readIntroSeen(): boolean {
+  try {
+    return window.localStorage.getItem(INTRO_SEEN_KEY) === "1";
+  } catch {
+    return false;
+  }
+}
+function writeIntroSeen() {
+  try {
+    window.localStorage.setItem(INTRO_SEEN_KEY, "1");
+  } catch {
+    // best-effort only
+  }
+}
 
 function setReportParam(id: string | null) {
   const url = new URL(window.location.href);
@@ -130,6 +151,10 @@ export default function HomePage() {
   const [sheetHeight, setSheetHeight] = useState(0);
   const [pickerHeight, setPickerHeight] = useState(0);
   const [routeCardHeight, setRouteCardHeight] = useState(0);
+  const [situationHeight, setSituationHeight] = useState(0);
+  const [situationExpanded, setSituationExpanded] = useState(true);
+  // null until read on the client, so the intro never flashes during hydration.
+  const [introSeen, setIntroSeen] = useState<boolean | null>(null);
   const [locating, setLocating] = useState(false);
   const [locationNoticeDismissed, setLocationNoticeDismissed] = useState(false);
   const [routeDraft, setRouteDraft] = useState<RouteDraft>({ origin: null, destination: null, vehicle: "sedan" });
@@ -154,6 +179,23 @@ export default function HomePage() {
     [geo],
   );
   const mapCenter = viewport?.center ?? userLocation ?? DEFAULT_CENTER;
+
+  useEffect(() => {
+    setIntroSeen(readIntroSeen());
+  }, []);
+  // Once the device has a position the intro has done its job.
+  const located = userLocation != null;
+  useEffect(() => {
+    if (located) writeIntroSeen();
+  }, [located]);
+  const showIntro = introSeen === false && !userLocation;
+
+  // "What's happening near me": around the device, or around the map center
+  // when location isn't available (after the intro, or once location failed).
+  const situationOrigin =
+    userLocation ?? (viewport && (introSeen || geo.status === "denied" || geo.status === "unavailable") && !showIntro ? viewport.center : null);
+  const nearby = useNearbyReports(situationOrigin, "distance", SITUATION_RADIUS_M);
+  const situation = useMemo(() => summarizeSituation(nearby.data, now), [nearby.data, now]);
 
   // Center on the user once, when their position first resolves — unless a
   // shared report link already decided where to look.
@@ -413,6 +455,9 @@ export default function HomePage() {
     (layerSelection.kind !== "flood" || floodSelection != null) &&
     (layerSelection.kind !== "cctv" || cctvOn);
   const routeCardOpen = onMap && !picking && !sheetOpen && !layerSheetOpen && routeOverlay != null;
+  const bottomFree = onMap && !picking && !sheetOpen && !layerSheetOpen && !routeCardOpen;
+  const introVisible = bottomFree && showIntro;
+  const situationVisible = bottomFree && !showIntro && situationOrigin != null;
   const filtersActive = JSON.stringify(filters) !== JSON.stringify(DEFAULT_FILTERS);
   const layersActive = (layers.places ? 1 : 0) + (layers.announcements ? 1 : 0) + (gistdaOn ? 1 : 0) + (cctvOn ? 1 : 0);
   const cctvSelection = layerSelection?.kind === "cctv" ? layerSelection.camera : null;
@@ -426,7 +471,9 @@ export default function HomePage() {
         ? sheetHeight
         : routeCardOpen
           ? routeCardHeight
-          : 0;
+          : introVisible || situationVisible
+            ? situationHeight
+            : 0;
 
   const pickerRef = useCallback((el: HTMLElement | null) => {
     if (!el) return;
@@ -435,6 +482,16 @@ export default function HomePage() {
     return () => {
       ro.disconnect();
       setPickerHeight(0);
+    };
+  }, []);
+
+  const situationRef = useCallback((el: HTMLElement | null) => {
+    if (!el) return;
+    const ro = new ResizeObserver(() => setSituationHeight(el.offsetHeight));
+    ro.observe(el);
+    return () => {
+      ro.disconnect();
+      setSituationHeight(0);
     };
   }, []);
 
@@ -594,7 +651,7 @@ export default function HomePage() {
                 {errorMessage}
               </MapNotice>
             )}
-            {(geo.status === "denied" || geo.status === "unavailable") && !locationNoticeDismissed && (
+            {(geo.status === "denied" || geo.status === "unavailable") && !locationNoticeDismissed && !introVisible && (
               <MapNotice icon={<MapPinOff />} action={{ label: t("close"), onClick: () => setLocationNoticeDismissed(true) }}>
                 {geo.status === "denied" ? t("locationDenied") : t("locationUnavailable")}
               </MapNotice>
@@ -685,6 +742,46 @@ export default function HomePage() {
             onDetails={() => openMore("route")}
           />
         </div>
+      )}
+
+      {introVisible && (
+        <SituationIntro
+          sheetRef={situationRef}
+          locating={locating}
+          onUseLocation={async () => {
+            const loc = await requestLocation();
+            if (loc) setFocus({ ...loc, zoom: 14 });
+          }}
+          onPickArea={() => {
+            writeIntroSeen();
+            setIntroSeen(true);
+          }}
+        />
+      )}
+      {situationVisible && (
+        <SituationSheet
+          sheetRef={situationRef}
+          situation={situation}
+          status={nearby.status}
+          fetchedAt={nearby.fetchedAt}
+          aroundUser={userLocation != null}
+          expanded={situationExpanded}
+          onExpandedChange={setSituationExpanded}
+          online={online}
+          now={now}
+          onRetry={nearby.retry}
+          onShowOnMap={(r) => {
+            setSituationExpanded(false);
+            setFocus({ latitude: r.latitude, longitude: r.longitude, zoom: 16 });
+          }}
+          onOpenReport={openReport}
+          onSeeAll={() => setTab("nearby")}
+          onLookElsewhere={() => {
+            setSituationExpanded(false);
+            setFocus({ ...mapCenter, zoom: Math.min(viewport?.zoom ?? 14, 11) });
+          }}
+          onUseLocation={!userLocation && geo.status !== "denied" ? () => goToMyLocation(14) : undefined}
+        />
       )}
 
       {picking && (

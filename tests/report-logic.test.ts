@@ -160,7 +160,7 @@ test("new-report categories exclude the SOS cases; the form schema enforces it",
   // The CategoryPicker renders exactly this list.
   assert.deepEqual(
     CREATABLE_REPORT_TYPES.map((type) => categoryLabel(tTh, type)),
-    ["น้ำท่วม", "ถนนปิด", "อุบัติเหตุ", "สิ่งกีดขวาง", "ไฟดับ", "ศูนย์พักพิง", "จุดช่วยเหลือ"],
+    ["น้ำท่วม", "ถนนปิด", "อุบัติเหตุ", "สิ่งกีดขวาง", "ถนนชำรุด", "งานก่อสร้าง", "ไฟจราจรเสีย", "ไฟดับ", "ศูนย์พักพิง", "จุดช่วยเหลือ"],
   );
   const schema = createReportFormSchema(t);
   for (const type of CREATABLE_REPORT_TYPES) {

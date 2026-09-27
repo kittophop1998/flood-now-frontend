@@ -12,6 +12,9 @@ export const REPORT_TYPES = [
   "shelter",
   "aid_point",
   "other",
+  "road_damage",
+  "construction",
+  "traffic_signal_issue",
 ] as const;
 export type ReportType = (typeof REPORT_TYPES)[number];
 
@@ -24,6 +27,9 @@ export const CREATABLE_REPORT_TYPES = [
   "road_closed",
   "accident",
   "obstruction",
+  "road_damage",
+  "construction",
+  "traffic_signal_issue",
   "power_outage",
   "shelter",
   "aid_point",
@@ -42,6 +48,10 @@ export type PassLevel = (typeof PASS_LEVELS)[number];
 export const VEHICLES = ["walk", "motorcycle", "sedan", "suv_pickup"] as const;
 export type Vehicle = (typeof VEHICLES)[number];
 export type Passability = Record<Vehicle, PassLevel>;
+
+// Category-specific fields (docs/api-spec.md "Category details"): which keys a
+// category has and their values live in lib/report-meta.ts CATEGORY_DETAILS.
+export type ReportDetails = Partial<Record<string, string>>;
 
 export const REPORT_STATUSES = ["active", "possibly_stale", "resolved", "expired"] as const;
 export type ReportStatus = (typeof REPORT_STATUSES)[number];
@@ -62,6 +72,9 @@ export interface Report {
   water_depth: WaterDepth | null;
   water_level_cm: number | null;
   passability: Passability | null;
+  // Category-specific details; null on reports without any (every report
+  // stored before details existed).
+  details?: ReportDetails | null;
   description: string | null;
   image_key: string | null;
   image_url: string | null;
@@ -89,6 +102,7 @@ export interface CreateReportInput {
   longitude: number;
   water_depth?: WaterDepth | null;
   passability?: Passability | null;
+  details?: ReportDetails | null;
   description?: string | null;
   image_key?: string | null;
   people_count?: number | null;
@@ -101,11 +115,12 @@ export interface CreateReportInput {
 
 // What someone on the spot says has changed, sent with a still_active
 // confirmation. Omitted fields stay as they are; fields that don't apply to
-// the report's category are dropped by the API.
+// the report's category are dropped by the API. Details merge key by key.
 export interface ConditionUpdate {
   severity?: Severity;
   water_depth?: WaterDepth;
   passability?: Passability;
+  details?: ReportDetails;
   image_key?: string;
 }
 
@@ -143,6 +158,7 @@ export interface NearbyQuery {
   longitude: number;
   radiusM?: number;
   types?: ReportType[];
+  severities?: Severity[];
   sort?: NearbySort;
   limit?: number;
 }
@@ -163,7 +179,7 @@ export type CreateFollowInput =
   | { device_id: string; kind: "report"; report_id: string }
   | { device_id: string; kind: "area"; latitude: number; longitude: number; radius_m: number };
 
-export const NOTIFICATION_KINDS = ["severe_nearby", "updated", "confirmed", "resolved", "reopened"] as const;
+export const NOTIFICATION_KINDS = ["severe_nearby", "closure_nearby", "updated", "confirmed", "resolved", "reopened"] as const;
 export type NotificationKind = (typeof NOTIFICATION_KINDS)[number];
 
 export interface AppNotification {

@@ -27,11 +27,13 @@ import {
   OctagonAlert,
   PersonStanding,
   Shield,
+  ShieldAlert,
   ShieldCheck,
   Ship,
   Siren,
   Star,
   Tent,
+  TrafficCone,
   TriangleAlert,
   Truck,
   UsersRound,
@@ -141,6 +143,8 @@ export const ANNOUNCEMENT_TYPE_META: Record<AnnouncementType, LucideIcon> = {
   water_release: Droplets,
   weather: CloudRain,
   shelter_info: Tent,
+  construction: TrafficCone,
+  safety_notice: ShieldAlert,
   general: Megaphone,
 };
 

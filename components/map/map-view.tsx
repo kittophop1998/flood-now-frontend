@@ -123,7 +123,19 @@ export const MapView = memo(function MapView({
   const [containerH, setContainerH] = useState(0);
   const padBottom = Math.round(Math.min(bottomInset, containerH * 0.6));
   useEffect(() => {
-    mapRef.current?.easeTo({ padding: { top: 0, left: 0, right: 0, bottom: padBottom }, duration: 300 });
+    const map = mapRef.current;
+    if (!map) return;
+    const apply = () => map.easeTo({ padding: { top: 0, left: 0, right: 0, bottom: padBottom }, duration: 300 });
+    // A bottom sheet appearing mid-flight (e.g. the nearby summary while the
+    // map flies to the user) must not cancel the flight: pad once it lands.
+    if (!map.isMoving()) {
+      apply();
+      return;
+    }
+    map.once("moveend", apply);
+    return () => {
+      map.off("moveend", apply);
+    };
   }, [padBottom]);
 
   useEffect(() => {

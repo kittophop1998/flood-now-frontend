@@ -23,8 +23,9 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "FloodNow",
-  description: "Community flood and road-condition reports — see what's passable right now.",
+  title: "FloodNow — รู้สถานการณ์รอบตัว ก่อนออกเดินทาง",
+  description:
+    "แผนที่สถานการณ์รอบตัว — น้ำท่วม ถนนปิด อุบัติเหตุ และเหตุที่กระทบการเดินทางจากรายงานของชุมชน · Know what's happening around you before you travel: floods, closures, accidents and other road and safety incidents reported by the community.",
   manifest: "/manifest.json",
   icons: { icon: "/icon.svg", apple: "/apple-touch-icon.png" },
   // iOS "Add to Home Screen" opens full-screen like an installed app.

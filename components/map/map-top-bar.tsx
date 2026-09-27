@@ -1,10 +1,9 @@
 "use client";
 
 import { useState } from "react";
-import { Clock, Layers, Loader2, LocateFixed, MapPin, Search, SlidersHorizontal, TriangleAlert, X, Zap } from "lucide-react";
+import { Clock, Layers, Loader2, LocateFixed, MapPin, Search, SlidersHorizontal, X, Zap } from "lucide-react";
 import { usePlaceSearch } from "@/features/reports/use-place-search";
-import { CATEGORY_CHIPS, RECENT_WINDOW_MIN, SEVERE, isSevereOnly, toggleChipTypes, countAdvancedFilters, type MapFilters } from "@/lib/map-filters";
-import { CATEGORY_META } from "@/lib/report-meta";
+import { countAdvancedFilters, type MapFilters } from "@/lib/map-filters";
 import { useTranslation } from "@/lib/i18n/locale-context";
 import { cn } from "@/lib/utils";
 import type { TranslationKey } from "@/lib/i18n/locale";
@@ -52,21 +51,6 @@ export function MapTopBar({
         if (!filters.nearMe && !canFilterNearMe) return onNeedLocation();
         onFiltersChange({ ...filters, nearMe: !filters.nearMe });
       },
-    },
-    {
-      id: "recent",
-      label: "quick.recent",
-      icon: Clock,
-      on: filters.updatedWithinMin === RECENT_WINDOW_MIN,
-      toggle: () =>
-        onFiltersChange({ ...filters, updatedWithinMin: filters.updatedWithinMin === RECENT_WINDOW_MIN ? null : RECENT_WINDOW_MIN }),
-    },
-    {
-      id: "severe",
-      label: "quick.severe",
-      icon: TriangleAlert,
-      on: isSevereOnly(filters),
-      toggle: () => onFiltersChange({ ...filters, severities: isSevereOnly(filters) ? [] : SEVERE }),
     },
     {
       id: "active",
@@ -176,34 +160,10 @@ export function MapTopBar({
         )}
       </div>
 
-      <div className="no-scrollbar pointer-events-auto flex gap-2 overflow-x-auto px-3 py-1" aria-label={t("filterCategories")} role="group">
-        <button
-          type="button"
-          aria-pressed={filters.types.length === 0}
-          onClick={() => onFiltersChange({ ...filters, types: [] })}
-          className={cn(chipBase, filters.types.length === 0 ? chipOn : chipOff)}
-        >
-          {t("filterAll")}
-        </button>
-        {CATEGORY_CHIPS.map((chip) => {
-          const on = chip.types.every((type) => filters.types.includes(type));
-          const Icon = CATEGORY_META[chip.types[0]].icon;
-          return (
-            <button
-              key={chip.id}
-              type="button"
-              aria-pressed={on}
-              onClick={() => onFiltersChange({ ...filters, types: toggleChipTypes(filters.types, chip.types) })}
-              className={cn(chipBase, on ? chipOn : chipOff)}
-            >
-              <Icon className="size-4" style={on ? undefined : { color: CATEGORY_META[chip.types[0]].color }} aria-hidden />
-              {t(`chip.${chip.id}` as TranslationKey)}
-            </button>
-          );
-        })}
-      </div>
-
-      <div className="no-scrollbar pointer-events-auto -mt-1 flex gap-2 overflow-x-auto px-3 py-1" role="group" aria-label={t("filtersTitle")}>
+      {/* The only always-visible filters: near me + ongoing. Categories,
+          latest/severe, distance and vehicle live in the filter sheet (its
+          button shows how many are set) so the map stays spacious. */}
+      <div className="no-scrollbar pointer-events-auto flex gap-2 overflow-x-auto px-3 py-0.5" role="group" aria-label={t("filtersTitle")}>
         {quick.map((q) => {
           const Icon = q.icon;
           return (
@@ -212,9 +172,9 @@ export function MapTopBar({
               type="button"
               aria-pressed={q.on}
               onClick={q.toggle}
-              className={cn(chipBase, "h-8 px-2.5 text-xs after:-inset-y-1.5", q.on ? "border-primary bg-accent text-primary" : chipOff)}
+              className={cn(chipBase, q.on ? chipOn : chipOff)}
             >
-              <Icon className="size-3.5" aria-hidden />
+              <Icon className="size-4" aria-hidden />
               {t(q.label)}
             </button>
           );

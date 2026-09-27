@@ -5,7 +5,7 @@ import { ChevronDown, CircleAlert, Info, Radar, ShieldCheck } from "lucide-react
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
-import { AreaLevelBadge, StaleDataNote } from "@/components/community/badges";
+import { AreaLevelBadge, AreaTopLine, StaleDataNote } from "@/components/community/badges";
 import { ReportCard } from "@/components/report/report-card";
 import { EmptyState, ViewShell } from "@/components/views/view-shell";
 import { useNow } from "@/features/common/use-now";
@@ -125,8 +125,11 @@ function WatchCard({
         </span>
         <div className="min-w-0 flex-1">
           <p className="truncate font-semibold">{place.name}</p>
+          <div className="mt-1">
+            <AreaTopLine area={place.area} />
+          </div>
           <div className="mt-1 flex flex-wrap items-center gap-1.5">
-            <AreaLevelBadge level={place.area.level} />
+            {place.area.level !== "clear" && <AreaLevelBadge level={place.area.level} />}
             {place.area.severe_count > 0 && (
               <span className="text-xs font-semibold text-red-700">{t("areaSevereCount", { n: place.area.severe_count })}</span>
             )}

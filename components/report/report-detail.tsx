@@ -20,7 +20,16 @@ import { distanceMeters, formatDistance } from "@/lib/distance";
 import { formatClockTime, formatDuration, formatFreshness, freshnessLine } from "@/lib/freshness";
 import { reportShareText } from "@/lib/share";
 import { imageKitUrl } from "@/lib/imagekit";
-import { CATEGORY_META, WATER_DEPTH_META, hasKnownPassability, reportTitle, waterDepthLabel } from "@/lib/report-meta";
+import {
+  CATEGORY_META,
+  WATER_DEPTH_META,
+  detailLabel,
+  detailValueLabel,
+  hasKnownPassability,
+  knownDetails,
+  reportTitle,
+  waterDepthLabel,
+} from "@/lib/report-meta";
 import { currentStatus, isOpen } from "@/lib/report-status";
 import { useTranslation } from "@/lib/i18n/locale-context";
 import { cn } from "@/lib/utils";
@@ -124,7 +133,7 @@ export function ReportDetailPopup({
   }
 
   async function handleShare() {
-    const result = await shareLink(reportShareUrl(report.id), reportTitle(t, report), reportShareText(t, report, now));
+    const result = await shareLink(reportShareUrl(report.id), reportTitle(t, report), reportShareText(t, report, now, place?.name));
     if (result === "copied") toast.success(t("shareCopied"));
     if (result === "failed") toast.error(t("shareFailed"));
   }
@@ -290,6 +299,11 @@ export function ReportDetailPopup({
             <span className="text-muted-foreground">{t(`severityHint.${report.severity}`)}</span>
           </span>
         </DetailRow>
+        {knownDetails(report.type, report.details).map(([field, value]) => (
+          <DetailRow key={field.key} label={detailLabel(t, field.key)}>
+            {detailValueLabel(t, field.key, value)}
+          </DetailRow>
+        ))}
         {fields.waterDepth && report.water_depth && (
           <DetailRow label={t("waterDepthLabel")}>
             <span className="flex flex-wrap items-center gap-2">

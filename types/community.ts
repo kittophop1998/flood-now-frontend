@@ -1,7 +1,7 @@
 // Mirrors docs/api-spec.md for saved places, safe routes, SOS/helpers,
 // important places, announcements, moderation and public config. Keep in
 // sync with the API contract by hand, like types/report.ts.
-import type { Report, Severity, Vehicle } from "@/types/report";
+import type { Report, ReportType, Severity, Vehicle } from "@/types/report";
 
 export type LatLng = { latitude: number; longitude: number };
 
@@ -30,6 +30,9 @@ export interface SavedPlace {
     active_count: number;
     severe_count: number;
     latest_update_at: string | null;
+    // The incident that matters most there (never a shelter/aid point);
+    // null when there is none. Optional: older cached copies lack it.
+    top?: { report_id: string; type: ReportType; severity: Severity; distance_m: number } | null;
   };
 }
 
@@ -56,6 +59,12 @@ export type RouteReason =
   | "possibly_outdated"
   | "severe_unknown_access"
   | "road_closed"
+  | "partial_closure"
+  | "all_lanes_blocked"
+  | "lanes_blocked"
+  | "construction"
+  | "road_damage"
+  | "traffic_signal_issue"
   | "passable_for_vehicle"
   | "nearby_incident";
 
@@ -244,6 +253,8 @@ export const ANNOUNCEMENT_TYPES = [
   "water_release",
   "weather",
   "shelter_info",
+  "construction",
+  "safety_notice",
   "general",
 ] as const;
 export type AnnouncementType = (typeof ANNOUNCEMENT_TYPES)[number];

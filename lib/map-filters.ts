@@ -2,19 +2,23 @@ import { distanceMeters } from "@/lib/distance";
 import { currentStatus } from "@/lib/report-status";
 import type { ListReportsQuery, Report, ReportStatus, ReportType, Severity, Vehicle } from "@/types/report";
 
-// Category chips on the map. Shelter and aid point share one chip — both
-// answer "where can I get help/shelter".
+// Category options in the filter sheet. Shelter and aid point share one —
+// both answer "where can I get help/shelter"; the legacy categories no new
+// report can use (older stored reports still have them) share one too.
 export const CATEGORY_CHIPS: { id: string; types: ReportType[] }[] = [
   { id: "flooded", types: ["flooded"] },
   { id: "road_closed", types: ["road_closed"] },
   { id: "accident", types: ["accident"] },
   { id: "obstruction", types: ["obstruction"] },
-  { id: "vehicle_stalled", types: ["vehicle_stalled"] },
-  { id: "help_needed", types: ["help_needed"] },
+  { id: "road_damage", types: ["road_damage"] },
+  { id: "construction", types: ["construction"] },
+  { id: "traffic_signal_issue", types: ["traffic_signal_issue"] },
+  { id: "power_outage", types: ["power_outage"] },
   { id: "facilities", types: ["shelter", "aid_point"] },
+  { id: "legacy", types: ["vehicle_stalled", "help_needed", "other"] },
 ];
 
-export const RADIUS_OPTIONS_KM = [1, 3, 5, 10] as const;
+export const RADIUS_OPTIONS_KM = [1, 3, 5] as const;
 export const UPDATED_WITHIN_OPTIONS_MIN = [60, 120, 180, 360] as const;
 // The "Latest" quick chip and the highlighted pins on the map share this window.
 export const RECENT_WINDOW_MIN = 120;
@@ -86,10 +90,13 @@ export function toggleChipTypes(current: ReportType[], chipTypes: ReportType[]):
   return allOn ? current.filter((t) => !chipTypes.includes(t)) : [...new Set([...current, ...chipTypes])];
 }
 
+// Filters set in the sheet beyond the two quick toggles on the map (near me,
+// ongoing) — shown as a count on the filter button so nothing is hidden.
 export function countAdvancedFilters(filters: MapFilters): number {
   let n = 0;
-  if (filters.severities.length > 0 && !isSevereOnly(filters)) n++;
-  if (filters.updatedWithinMin != null && filters.updatedWithinMin !== RECENT_WINDOW_MIN) n++;
+  if (filters.types.length > 0) n++;
+  if (filters.severities.length > 0) n++;
+  if (filters.updatedWithinMin != null) n++;
   if (filters.blockedFor) n++;
   if (filters.nearMe && filters.radiusKm !== DEFAULT_FILTERS.radiusKm) n++;
   return n;

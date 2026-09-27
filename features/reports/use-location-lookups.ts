@@ -18,10 +18,11 @@ function usePointLookup<T>(
   debounceMs: number,
   initial: T,
 ) {
-  const [result, setResult] = useState<{ key: string | null; data: T; status: LookupStatus }>({
+  const [result, setResult] = useState<{ key: string | null; data: T; status: LookupStatus; at: string | null }>({
     key: null,
     data: initial,
     status: "idle",
+    at: null,
   });
   const [retryToken, setRetryToken] = useState(0);
 
@@ -32,9 +33,9 @@ function usePointLookup<T>(
       setResult((r) => ({ ...r, status: "loading" }));
       try {
         const data = await fetcher(controller.signal);
-        setResult({ key, data, status: "ready" });
+        setResult({ key, data, status: "ready", at: new Date().toISOString() });
       } catch (err) {
-        if (!isAbortError(err)) setResult({ key, data: initial, status: "error" });
+        if (!isAbortError(err)) setResult({ key, data: initial, status: "error", at: null });
       }
     }, debounceMs);
     return () => {
@@ -49,6 +50,8 @@ function usePointLookup<T>(
   return {
     data: current ? result.data : initial,
     status: key == null ? ("idle" as const) : current ? result.status : ("loading" as const),
+    // When the current data was fetched (null until it has been).
+    fetchedAt: current ? result.at : null,
     retry: () => setRetryToken((n) => n + 1),
   };
 }

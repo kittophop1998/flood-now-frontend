@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { CircleAlert, LocateFixed, MapPinned, ShieldCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ReportCard } from "@/components/report/report-card";
@@ -8,6 +8,7 @@ import { EmptyState, ViewShell } from "@/components/views/view-shell";
 import { useNearbyReports } from "@/features/reports/use-location-lookups";
 import { useNow } from "@/features/common/use-now";
 import { formatDistance } from "@/lib/distance";
+import { currentStatus } from "@/lib/report-status";
 import { useTranslation } from "@/lib/i18n/locale-context";
 import { cn } from "@/lib/utils";
 import { NEARBY_SORTS, type NearbySort, type Report } from "@/types/report";
@@ -17,7 +18,8 @@ type LatLng = { latitude: number; longitude: number };
 const NEARBY_RADIUS_M = 5000;
 
 // Open incidents around the user (or the map center when location is off),
-// as cards sortable by distance, recency or severity.
+// as cards sortable by distance, recency or severity. Tapping one focuses the
+// map on it and opens its detail sheet.
 export function NearbyView({
   userLocation,
   mapCenter,
@@ -39,6 +41,12 @@ export function NearbyView({
   const origin = userLocation ?? mapCenter;
   const { data, status, retry } = useNearbyReports(origin, sort, NEARBY_RADIUS_M);
   const radiusText = formatDistance(NEARBY_RADIUS_M, t);
+  // Whatever the sort, reports nobody re-confirmed ("may be outdated") go
+  // after the current ones so old news never leads the list.
+  const reports = useMemo(
+    () => [...data].sort((a, b) => Number(currentStatus(a, now) !== "active") - Number(currentStatus(b, now) !== "active")),
+    [data, now],
+  );
 
   return (
     <ViewShell
@@ -102,7 +110,7 @@ export function NearbyView({
         )}
 
         {status === "ready" &&
-          data.map((report) => (
+          reports.map((report) => (
             <ReportCard key={report.id} report={report} now={now} distanceM={report.distance_m} onSelect={() => onSelect(report)} />
           ))}
       </div>

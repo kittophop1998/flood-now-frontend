@@ -1,10 +1,30 @@
 "use client";
 
-import { CATEGORY_META, SEVERITY_META, WATER_DEPTH_META, categoryLabel, severityLabel, toneClass, waterDepthLabel } from "@/lib/report-meta";
+import {
+  CATEGORY_META,
+  SEVERITY_META,
+  WATER_DEPTH_META,
+  categoryLabel,
+  detailFields,
+  detailLabel,
+  detailValueLabel,
+  severityLabel,
+  toneClass,
+  waterDepthLabel,
+} from "@/lib/report-meta";
 import { DepthGauge } from "@/components/report/report-badges";
 import { useTranslation } from "@/lib/i18n/locale-context";
 import { cn } from "@/lib/utils";
-import { CREATABLE_REPORT_TYPES, SEVERITIES, WATER_DEPTHS, type CreatableReportType, type Severity, type WaterDepth } from "@/types/report";
+import {
+  CREATABLE_REPORT_TYPES,
+  SEVERITIES,
+  WATER_DEPTHS,
+  type CreatableReportType,
+  type ReportDetails,
+  type ReportType,
+  type Severity,
+  type WaterDepth,
+} from "@/types/report";
 
 const optionFocus = "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring";
 
@@ -20,12 +40,12 @@ export function CategoryPicker({
   invalid?: boolean;
 }) {
   const { t } = useTranslation();
-  // Seven categories: flood (the headline case) spans a full row on narrow
-  // screens (1 + 3 + 3) and two cells on wider ones (4 + 4), so the grid
-  // never ends in a half-empty row.
+  // Ten year-round categories, all equal (no category is the default):
+  // two columns of icon + label on phones, 5 × 2 tiles on wider screens —
+  // always full rows.
   return (
-    <div role="radiogroup" aria-labelledby={labelledBy} aria-invalid={invalid} className="grid grid-cols-3 gap-2 min-[400px]:grid-cols-4">
-      {CREATABLE_REPORT_TYPES.map((type, i) => {
+    <div role="radiogroup" aria-labelledby={labelledBy} aria-invalid={invalid} className="grid grid-cols-2 gap-2 sm:grid-cols-5">
+      {CREATABLE_REPORT_TYPES.map((type) => {
         const meta = CATEGORY_META[type];
         const Icon = meta.icon;
         const selected = value === type;
@@ -37,13 +57,12 @@ export function CategoryPicker({
             aria-checked={selected}
             onClick={() => onChange(type)}
             className={cn(
-              "flex min-h-[76px] flex-col items-center justify-center gap-1.5 rounded-xl border px-1 py-2 text-center text-xs leading-tight font-medium transition-colors",
-              i === 0 && "col-span-3 min-[400px]:col-span-2",
+              "flex min-h-12 items-center gap-2.5 rounded-xl border px-2.5 py-2 text-left text-sm leading-tight font-medium transition-colors sm:min-h-[76px] sm:flex-col sm:justify-center sm:gap-1.5 sm:px-1 sm:text-center sm:text-xs",
               optionFocus,
               selected ? "border-primary bg-accent text-foreground ring-2 ring-primary/30" : "bg-background hover:bg-muted",
             )}
           >
-            <span className="flex size-8 items-center justify-center rounded-full text-white" style={{ backgroundColor: meta.color }}>
+            <span className="flex size-8 shrink-0 items-center justify-center rounded-full text-white" style={{ backgroundColor: meta.color }}>
               <Icon className="size-4" aria-hidden />
             </span>
             {categoryLabel(t, type)}
@@ -133,6 +152,63 @@ export function WaterDepthPicker({
             <span className="text-xs leading-tight font-semibold">{waterDepthLabel(t, depth)}</span>
             {range && <span className="text-[10px] leading-tight text-muted-foreground">{t(range)}</span>}
           </button>
+        );
+      })}
+    </div>
+  );
+}
+
+// The category's optional details (lanes blocked, closure, damage type…) as
+// rows of chips. Tapping the selected chip again clears it — none is required.
+export function DetailPicker({
+  type,
+  value,
+  onChange,
+  idPrefix,
+}: {
+  type: ReportType;
+  value: ReportDetails | null | undefined;
+  onChange: (details: ReportDetails) => void;
+  idPrefix: string;
+}) {
+  const { t } = useTranslation();
+  return (
+    <div className="flex flex-col gap-3">
+      {detailFields(type).map((field) => {
+        const labelId = `${idPrefix}-${field.key}`;
+        const current = value?.[field.key];
+        return (
+          <div key={field.key} className="flex flex-col gap-1.5">
+            <p id={labelId} className="text-xs font-medium text-muted-foreground">
+              {detailLabel(t, field.key)}
+            </p>
+            <div role="radiogroup" aria-labelledby={labelId} className="flex flex-wrap gap-1.5">
+              {field.options.map((option) => {
+                const selected = current === option;
+                return (
+                  <button
+                    key={option}
+                    type="button"
+                    role="radio"
+                    aria-checked={selected}
+                    onClick={() => {
+                      const next = { ...value };
+                      if (selected) delete next[field.key];
+                      else next[field.key] = option;
+                      onChange(next);
+                    }}
+                    className={cn(
+                      "inline-flex min-h-11 items-center rounded-xl border px-3 text-sm font-medium transition-colors",
+                      optionFocus,
+                      selected ? "border-primary bg-accent text-primary ring-1 ring-primary/30" : "bg-background hover:bg-muted",
+                    )}
+                  >
+                    {detailValueLabel(t, field.key, option)}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
         );
       })}
     </div>

@@ -1,7 +1,7 @@
 {
   "name": "FloodNow",
   "short_name": "FloodNow",
-  "description": "Community flood and road-condition reports — see what's passable right now.",
+  "description": "รู้สถานการณ์รอบตัว ก่อนออกเดินทาง — Know what's happening around you before you travel.",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#ffffff",

@@ -52,6 +52,7 @@ export const reportsService = {
           lng: query.longitude,
           radius_m: query.radiusM,
           types: query.types,
+          severities: query.severities,
           sort: query.sort,
           limit: query.limit,
         })}`,

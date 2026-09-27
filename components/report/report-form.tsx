@@ -11,13 +11,13 @@ import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { ImagePicker } from "@/components/report/image-picker";
 import { PassabilitySelector } from "@/components/report/passability";
-import { CategoryPicker, SeverityPicker, WaterDepthPicker } from "@/components/report/report-fields";
+import { CategoryPicker, DetailPicker, SeverityPicker, WaterDepthPicker } from "@/components/report/report-fields";
 import { DuplicateNotice } from "@/components/report/duplicate-notice";
 import { useImageUpload } from "@/features/reports/use-image-upload";
 import { useApproximateAddress, useDuplicateReports } from "@/features/reports/use-location-lookups";
 import { useNow } from "@/features/common/use-now";
 import { createReportFormSchema, type ReportFormValues } from "@/lib/report-schema";
-import { CATEGORY_META, hasKnownPassability, suggestPassability } from "@/lib/report-meta";
+import { CATEGORY_META, detailFields, hasKnownPassability, knownDetails, suggestPassability } from "@/lib/report-meta";
 import { UNKNOWN_PASSABILITY } from "@/lib/condition-update";
 import { useTranslation } from "@/lib/i18n/locale-context";
 import { cn } from "@/lib/utils";
@@ -32,9 +32,9 @@ export interface ReportDraft {
 
 type LatLng = { latitude: number; longitude: number };
 
-// Flow: location → what → how bad → details (depth/passability/help) →
-// description → photo → send. Category-specific sections come from
-// CATEGORY_META rather than per-category branches.
+// Flow: location → what → how bad → details (depth/passability/category
+// details) → description → photo → send. Category-specific sections come from
+// CATEGORY_META / CATEGORY_DETAILS rather than per-category branches.
 export function ReportForm({
   location,
   draft,
@@ -99,6 +99,7 @@ export function ReportForm({
   function submit(values: ReportFormValues) {
     if (image.state.status === "uploading" || image.state.status === "failed") return;
     const f = CATEGORY_META[values.type].fields;
+    const details = Object.fromEntries(knownDetails(values.type, values.details).map(([field, v]) => [field.key, v]));
     onSubmit({
       type: values.type,
       severity: values.severity,
@@ -106,6 +107,7 @@ export function ReportForm({
       longitude: location.longitude,
       water_depth: f.waterDepth ? (values.water_depth ?? "unknown") : null,
       passability: f.passability && hasKnownPassability(values.passability ?? null) ? values.passability : null,
+      details: Object.keys(details).length > 0 ? details : null,
       description: values.description?.trim() || null,
       image_key: image.state.status === "uploaded" ? image.state.objectKey : null,
       people_count: f.helpDetails ? (values.people_count ?? null) : null,
@@ -212,6 +214,16 @@ export function ReportForm({
                   }}
                 />
               )}
+            />
+          </Card>
+        )}
+
+        {type && detailFields(type).length > 0 && (
+          <Card title={t("detailsHeading")} titleId="field-details" hint={t("detailsHint")}>
+            <Controller
+              control={control}
+              name="details"
+              render={({ field }) => <DetailPicker type={type} value={field.value} onChange={field.onChange} idPrefix="field-detail" />}
             />
           </Card>
         )}

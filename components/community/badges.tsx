@@ -2,8 +2,9 @@
 
 import type { ReactNode } from "react";
 import type { LucideIcon } from "lucide-react";
-import { UserRoundPlus, UsersRound } from "lucide-react";
-import { toneClass, type Tone } from "@/lib/report-meta";
+import { ShieldCheck, UserRoundPlus, UsersRound } from "lucide-react";
+import { CATEGORY_META, categoryLabel, severityRank, toneClass, type Tone } from "@/lib/report-meta";
+import { formatDistance } from "@/lib/distance";
 import {
   AREA_LEVEL_META,
   IMPORTANT_PLACE_STATUS_META,
@@ -13,7 +14,7 @@ import {
 } from "@/lib/community-meta";
 import { useTranslation } from "@/lib/i18n/locale-context";
 import { cn } from "@/lib/utils";
-import type { AreaLevel, ImportantPlaceStatus, RouteRisk, SosStatus } from "@/types/community";
+import type { AreaLevel, ImportantPlaceStatus, RouteRisk, SavedPlace, SosStatus } from "@/types/community";
 
 const badgeBase = "inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs font-semibold leading-5 whitespace-nowrap";
 
@@ -44,6 +45,32 @@ export function AreaLevelBadge({ level }: { level: AreaLevel }) {
     <ToneBadge icon={meta.icon} tone={meta.tone}>
       {t(`areaLevel.${level}`)}
     </ToneBadge>
+  );
+}
+
+// The one line a saved place needs: what matters most around it ("Accident
+// 800 m away") or that nothing significant is reported there.
+export function AreaTopLine({ area }: { area: SavedPlace["area"] }) {
+  const { t } = useTranslation();
+  const top = area.top;
+  if (!top) {
+    if (area.active_count > 0) return null; // only facilities (shelter/aid) nearby
+    return (
+      <p className="flex items-center gap-1.5 text-sm text-teal-800">
+        <ShieldCheck className="size-4 shrink-0" aria-hidden />
+        {t("areaNothingSignificant")}
+      </p>
+    );
+  }
+  const meta = CATEGORY_META[top.type];
+  const Icon = meta.icon;
+  return (
+    <p className={cn("flex items-center gap-1.5 text-sm", severityRank(top.severity) >= 3 ? "font-semibold text-red-800" : "text-foreground")}>
+      <span className="flex size-5 shrink-0 items-center justify-center rounded-full text-white" style={{ backgroundColor: meta.color }} aria-hidden>
+        <Icon className="size-3" />
+      </span>
+      {t("areaTopIncident", { category: categoryLabel(t, top.type), d: formatDistance(top.distance_m, t) })}
+    </p>
   );
 }
 

@@ -6,16 +6,17 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { ImagePicker } from "@/components/report/image-picker";
 import { PassabilitySelector } from "@/components/report/passability";
-import { SeverityPicker, WaterDepthPicker } from "@/components/report/report-fields";
+import { DetailPicker, SeverityPicker, WaterDepthPicker } from "@/components/report/report-fields";
 import { useImageUpload } from "@/features/reports/use-image-upload";
 import { conditionChanges, conditionDraftFrom, type ConditionDraft } from "@/lib/condition-update";
 import { imageKitUrl } from "@/lib/imagekit";
-import { CATEGORY_META, suggestPassability } from "@/lib/report-meta";
+import { CATEGORY_META, detailFields, suggestPassability } from "@/lib/report-meta";
 import { useTranslation } from "@/lib/i18n/locale-context";
 import type { ConditionUpdate, Report } from "@/types/report";
 
 // "Still here — update it": anyone on the spot corrects the water depth,
-// severity, per-vehicle passability or photo. Pre-filled with what the report
+// severity, category details (lanes, closure…), per-vehicle passability or
+// photo. Pre-filled with what the report
 // shows now; only the changed fields are sent (with a still_active vote).
 // The photo is resized and uploaded (presign → R2) as soon as it's picked.
 // Render with a fresh `key` per opening so it starts from the latest report.
@@ -70,6 +71,12 @@ export function ReportUpdateDialog({
                 setDraft((d) => ({ ...d, water_depth: depth, passability: suggestion ?? d.passability }));
               }}
             />
+          </Field>
+        )}
+
+        {detailFields(report.type).length > 0 && (
+          <Field title={t("detailsHeading")} titleId="update-details">
+            <DetailPicker type={report.type} value={draft.details} onChange={(details) => setDraft((d) => ({ ...d, details }))} idPrefix="update-detail" />
           </Field>
         )}
 
