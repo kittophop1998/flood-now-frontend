@@ -237,32 +237,57 @@ export type ImportantPlaceInput = Partial<Omit<ImportantPlace, "id" | "origin" |
 
 // --- Official announcements ---
 
+// Year-round official notice types, in the order the admin picker shows
+// them. water_release is an older, flood-specific type: still valid (stored
+// records keep it), listed right after flood_warning.
 export const ANNOUNCEMENT_TYPES = [
   "flood_warning",
-  "evacuation",
-  "road_closure",
   "water_release",
-  "weather",
-  "shelter_info",
+  "road_closure",
+  "traffic_notice",
+  "accident_emergency",
   "construction",
+  "power_utility",
+  "weather",
+  "evacuation",
+  "shelter_info",
   "safety_notice",
+  "service_disruption",
   "general",
 ] as const;
 export type AnnouncementType = (typeof ANNOUNCEMENT_TYPES)[number];
 
+// Impact/urgency, not only danger: "info" (announcement-only) covers notices
+// that aren't a hazard; the rest share the report severity scale.
+export const ANNOUNCEMENT_SEVERITIES = ["info", "low", "moderate", "high", "critical"] as const;
+export type AnnouncementSeverity = (typeof ANNOUNCEMENT_SEVERITIES)[number];
+
 export type AnnouncementStatus = "draft" | "scheduled" | "active" | "expired";
+
+// An attached image, in display order (the first is the cover). image_url
+// may be absent; derive it from image_key via lib/imagekit.ts.
+export interface AnnouncementImage {
+  image_key: string;
+  image_url?: string | null;
+  width: number | null;
+  height: number | null;
+}
+
+export const MAX_ANNOUNCEMENT_IMAGES = 5;
 
 export interface Announcement {
   id: string;
   title: string;
   body: string;
   type: AnnouncementType;
-  severity: Severity;
+  severity: AnnouncementSeverity;
   source_name: string;
   source_url: string | null;
   latitude: number | null;
   longitude: number | null;
   radius_m: number | null;
+  // Absent from responses of an API that predates images.
+  images?: AnnouncementImage[];
   starts_at: string;
   ends_at: string | null;
   status: AnnouncementStatus;
@@ -275,13 +300,14 @@ export interface AnnouncementInput {
   title?: string;
   body?: string;
   type?: AnnouncementType;
-  severity?: Severity;
+  severity?: AnnouncementSeverity;
   source_name?: string;
   source_url?: string;
   latitude?: number;
   longitude?: number;
   radius_m?: number;
   clear_location?: boolean;
+  images?: { image_key: string; width?: number; height?: number }[];
   starts_at?: string;
   ends_at?: string;
   clear_ends_at?: boolean;

@@ -1,16 +1,17 @@
 "use client";
 
-import { useCallback, useEffect, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import Link from "next/link";
-import { ArrowLeft, EyeOff, Eye, Loader2, LogOut, RefreshCw, Trash2, CircleCheck, ShieldCheck } from "lucide-react";
+import { ArrowLeft, EyeOff, Eye, Loader2, LogOut, Megaphone, Pencil, RefreshCw, Trash2, CircleCheck, ShieldCheck } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import { LocaleToggle } from "@/components/locale-toggle";
+import { AnnouncementForm } from "@/components/admin/announcement-form";
 import { CoordinatePickerButton } from "@/components/admin/coordinate-picker";
-import { OfficialBadge, PlaceStatusBadge, ToneBadge, UserAddedBadge } from "@/components/community/badges";
+import { AnnouncementSeverityBadge, AnnouncementTypeIcon, PlaceStatusBadge, ToneBadge, UserAddedBadge } from "@/components/community/badges";
+import { AnnouncementThumb } from "@/components/layers/announcement-images";
 import { ReportSummary } from "@/components/report/report-card";
 import { EmptyState } from "@/components/views/view-shell";
 import { adminService } from "@/services/admin-service";
@@ -21,17 +22,14 @@ import { formatClockTime, formatFreshness } from "@/lib/freshness";
 import { useTranslation } from "@/lib/i18n/locale-context";
 import { cn } from "@/lib/utils";
 import {
-  ANNOUNCEMENT_TYPES,
   IMPORTANT_PLACE_CATEGORIES,
   IMPORTANT_PLACE_STATUSES,
   type Announcement,
-  type AnnouncementInput,
   type ImportantPlace,
   type ImportantPlaceInput,
   type ModerationAction,
   type ModerationItem,
 } from "@/types/community";
-import { SEVERITIES } from "@/types/report";
 
 // Session-only: the operator token never goes to localStorage.
 const TOKEN_KEY = "floodnow:admin-token";
@@ -273,13 +271,6 @@ function ModerationPanel({ token }: { token: string }) {
   );
 }
 
-function toLocalInput(iso: string | null): string {
-  if (!iso) return "";
-  const d = new Date(iso);
-  const pad = (n: number) => String(n).padStart(2, "0");
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
-}
-
 function numberOrUndefined(v: string): number | undefined {
   if (v.trim() === "") return undefined;
   const n = Number(v);
@@ -291,21 +282,10 @@ function AnnouncementsPanel({ token }: { token: string }) {
   const now = useNow();
   const [items, setItems] = useState<Announcement[] | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [saving, setSaving] = useState(false);
-  const [form, setForm] = useState({
-    title: "",
-    body: "",
-    type: "flood_warning" as Announcement["type"],
-    severity: "high" as Announcement["severity"],
-    source_name: "",
-    source_url: "",
-    latitude: "",
-    longitude: "",
-    radius_m: "",
-    starts_at: toLocalInput(new Date().toISOString()),
-    ends_at: "",
-    publish: false,
-  });
+  const [editing, setEditing] = useState<Announcement | null>(null);
+  // Bumped after a save so the create form starts empty again.
+  const [formKey, setFormKey] = useState(0);
+  const formTop = useRef<HTMLDivElement>(null);
 
   const load = useCallback(async () => {
     try {
@@ -320,35 +300,6 @@ function AnnouncementsPanel({ token }: { token: string }) {
     load();
   }, [load]);
 
-  async function create() {
-    setSaving(true);
-    setError(null);
-    const input: AnnouncementInput = {
-      title: form.title,
-      body: form.body,
-      type: form.type,
-      severity: form.severity,
-      source_name: form.source_name,
-      source_url: form.source_url || undefined,
-      latitude: numberOrUndefined(form.latitude),
-      longitude: numberOrUndefined(form.longitude),
-      radius_m: numberOrUndefined(form.radius_m),
-      starts_at: form.starts_at ? new Date(form.starts_at).toISOString() : undefined,
-      ends_at: form.ends_at ? new Date(form.ends_at).toISOString() : undefined,
-      publish: form.publish,
-    };
-    try {
-      await adminService(token).createAnnouncement(input);
-      toast.success(t("adminDone"));
-      setForm((f) => ({ ...f, title: "", body: "", source_url: "", latitude: "", longitude: "", radius_m: "", ends_at: "" }));
-      await load();
-    } catch (err) {
-      setError(errorText(err, t("adminUnreachable")));
-    } finally {
-      setSaving(false);
-    }
-  }
-
   async function run(action: () => Promise<unknown>) {
     try {
       await action();
@@ -358,108 +309,89 @@ function AnnouncementsPanel({ token }: { token: string }) {
     }
   }
 
-  const field = (key: keyof typeof form, label: string, props: Partial<React.ComponentProps<"input">> = {}) => (
-    <div className="grid gap-1.5">
-      <Label htmlFor={`ann-${key}`}>{label}</Label>
-      <Input
-        id={`ann-${key}`}
-        className="h-11 text-base"
-        value={String(form[key])}
-        onChange={(e) => setForm({ ...form, [key]: e.target.value })}
-        {...props}
-      />
-    </div>
-  );
+  function edit(a: Announcement) {
+    setEditing(a);
+    requestAnimationFrame(() => formTop.current?.scrollIntoView({ behavior: "smooth", block: "start" }));
+  }
 
   return (
     <div className="flex flex-col gap-3">
-      <Card>
-        <h2 className="font-semibold">{t("adminNewAnnouncement")}</h2>
-        {field("title", t("adminFieldTitle"), { maxLength: 200 })}
-        <div className="grid gap-1.5">
-          <Label htmlFor="ann-body">{t("adminFieldBody")}</Label>
-          <Textarea id="ann-body" rows={4} maxLength={5000} className="text-base" value={form.body} onChange={(e) => setForm({ ...form, body: e.target.value })} />
-        </div>
-        <div className="grid grid-cols-1 gap-3 min-[420px]:grid-cols-2">
-          <div className="grid gap-1.5">
-            <Label htmlFor="ann-type">{t("announcementType")}</Label>
-            <select id="ann-type" className={selectClass} value={form.type} onChange={(e) => setForm({ ...form, type: e.target.value as Announcement["type"] })}>
-              {ANNOUNCEMENT_TYPES.map((v) => (
-                <option key={v} value={v}>
-                  {t(`annType.${v}`)}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div className="grid gap-1.5">
-            <Label htmlFor="ann-severity">{t("severityHeading")}</Label>
-            <select id="ann-severity" className={selectClass} value={form.severity} onChange={(e) => setForm({ ...form, severity: e.target.value as Announcement["severity"] })}>
-              {SEVERITIES.map((v) => (
-                <option key={v} value={v}>
-                  {t(`severity.${v}`)}
-                </option>
-              ))}
-            </select>
-          </div>
-        </div>
-        {field("source_name", t("adminFieldSource"), { maxLength: 200 })}
-        {field("source_url", t("adminFieldSourceUrl"), { type: "url", placeholder: "https://" })}
-        <div className="grid grid-cols-3 gap-2">
-          {field("latitude", t("adminFieldLat"), { inputMode: "decimal" })}
-          {field("longitude", t("adminFieldLng"), { inputMode: "decimal" })}
-          {field("radius_m", t("adminFieldRadius"), { inputMode: "numeric" })}
-        </div>
-        <CoordinatePickerButton
-          value={numberOrUndefined(form.latitude) != null && numberOrUndefined(form.longitude) != null ? { latitude: Number(form.latitude), longitude: Number(form.longitude) } : null}
-          onPick={(p) => setForm((f) => ({ ...f, latitude: p.latitude.toFixed(6), longitude: p.longitude.toFixed(6) }))}
+      <div ref={formTop} className="scroll-mt-20">
+        <AnnouncementForm
+          key={editing ? `edit-${editing.id}` : `new-${formKey}`}
+          token={token}
+          editing={editing}
+          onSaved={() => {
+            setEditing(null);
+            setFormKey((k) => k + 1);
+            load();
+          }}
+          onCancelEdit={() => setEditing(null)}
         />
-        <div className="grid grid-cols-1 gap-3 min-[420px]:grid-cols-2">
-          {field("starts_at", t("announcementStarts"), { type: "datetime-local" })}
-          {field("ends_at", t("announcementEnds"), { type: "datetime-local" })}
-        </div>
-        <label className="flex min-h-11 items-center gap-2 text-sm">
-          <input type="checkbox" className="size-5" checked={form.publish} onChange={(e) => setForm({ ...form, publish: e.target.checked })} />
-          {t("adminPublishNow")}
-        </label>
-        {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
-        <Button className="h-11 rounded-xl" onClick={create} disabled={saving}>
-          {saving && <Loader2 className="animate-spin" aria-hidden />}
-          {t("adminCreate")}
-        </Button>
-      </Card>
+      </div>
 
-      {items?.map((a) => (
-        <Card key={a.id}>
-          <div className="flex flex-wrap items-center gap-1.5">
-            <OfficialBadge />
-            <span className="rounded-full border px-2 py-0.5 text-xs font-semibold">{t(`adminStatus.${a.status}`)}</span>
-            <span className="text-xs text-muted-foreground">{formatClockTime(a.starts_at, locale, now)}</span>
-          </div>
-          <p className="font-semibold">{a.title}</p>
-          <p className="text-xs text-muted-foreground">{a.source_name}</p>
-          <div className="flex flex-wrap gap-2">
-            {a.published_at ? (
-              <Button variant="outline" className="h-11 rounded-xl" onClick={() => run(() => adminService(token).setPublished(a.id, false))}>
-                {t("adminUnpublish")}
+      <h2 className="mt-3 px-1 font-semibold">{t("annListTitle")}</h2>
+      {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
+      {items == null && !error && <div className="h-32 animate-pulse rounded-2xl bg-background" aria-hidden />}
+      {items?.length === 0 && <EmptyState icon={<Megaphone />} title={t("annListEmpty")} />}
+      {items?.map((a) => {
+        return (
+          <Card key={a.id} className={cn(editing?.id === a.id && "border-primary")}>
+            <div className="flex items-start gap-3">
+              <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-indigo-700 text-white">
+                <AnnouncementTypeIcon type={a.type} className="size-5" />
+              </span>
+              <div className="flex min-w-0 flex-1 flex-col gap-1">
+                <div className="flex flex-wrap items-center gap-1.5">
+                  <span className="rounded-full border px-2 py-0.5 text-xs font-semibold">{t(`adminStatus.${a.status}`)}</span>
+                  <AnnouncementSeverityBadge severity={a.severity} />
+                  <span className="text-xs text-muted-foreground">{t(`annType.${a.type}`)}</span>
+                </div>
+                <p className="font-semibold break-words">{a.title}</p>
+                <p className="text-xs text-muted-foreground">
+                  {a.source_name} · {formatClockTime(a.starts_at, locale, now)}
+                  {a.ends_at && ` – ${formatClockTime(a.ends_at, locale, now)}`}
+                </p>
+              </div>
+              <AnnouncementThumb images={a.images} />
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <Button variant="outline" className="h-11 rounded-xl" onClick={() => edit(a)}>
+                <Pencil aria-hidden />
+                {t("edit")}
               </Button>
-            ) : (
-              <Button className="h-11 rounded-xl" onClick={() => run(() => adminService(token).setPublished(a.id, true))}>
-                <ShieldCheck aria-hidden />
-                {t("adminPublish")}
+              {a.published_at ? (
+                <Button variant="outline" className="h-11 rounded-xl" onClick={() => run(() => adminService(token).setPublished(a.id, false))}>
+                  {t("adminUnpublish")}
+                </Button>
+              ) : (
+                <Button className="h-11 rounded-xl" onClick={() => run(() => adminService(token).setPublished(a.id, true))}>
+                  <ShieldCheck aria-hidden />
+                  {t("adminPublish")}
+                </Button>
+              )}
+              {a.status !== "expired" && (
+                <Button variant="outline" className="h-11 rounded-xl" onClick={() => run(() => adminService(token).updateAnnouncement(a.id, { ends_at: new Date().toISOString() }))}>
+                  {t("adminEndNow")}
+                </Button>
+              )}
+              <Button
+                variant="ghost"
+                className="h-11 rounded-xl text-destructive"
+                onClick={() =>
+                  run(async () => {
+                    await adminService(token).deleteAnnouncement(a.id);
+                    if (editing?.id === a.id) setEditing(null);
+                  })
+                }
+              >
+                <Trash2 aria-hidden />
+                {t("delete")}
               </Button>
-            )}
-            {a.status !== "expired" && (
-              <Button variant="outline" className="h-11 rounded-xl" onClick={() => run(() => adminService(token).updateAnnouncement(a.id, { ends_at: new Date().toISOString() }))}>
-                {t("adminEndNow")}
-              </Button>
-            )}
-            <Button variant="ghost" className="h-11 rounded-xl text-destructive" onClick={() => run(() => adminService(token).deleteAnnouncement(a.id))}>
-              <Trash2 aria-hidden />
-              {t("delete")}
-            </Button>
-          </div>
-        </Card>
-      ))}
+            </div>
+          </Card>
+        );
+      })}
     </div>
   );
 }

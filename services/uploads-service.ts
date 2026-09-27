@@ -1,4 +1,4 @@
-import { apiClient, ApiError } from "@/services/api-client";
+import { adminClient, apiClient, ApiError } from "@/services/api-client";
 import type { PresignUploadResult } from "@/types/report";
 
 // Uploads a single image: presign via the API, then PUT bytes straight to
@@ -10,7 +10,23 @@ export async function uploadReportImage(file: File): Promise<string> {
     content_type: file.type,
     content_length: file.size,
   });
+  await putObject(presign, file);
+  return presign.object_key;
+}
 
+// Same flow for an official-announcement image, presigned by the operator
+// endpoint (ADMIN_TOKEN) so the key lands under the announcements/ prefix
+// the API requires for announcement images.
+export async function uploadAnnouncementImage(token: string, file: File): Promise<string> {
+  const presign = await adminClient(token).post<PresignUploadResult>("/api/v1/admin/uploads/presign", {
+    content_type: file.type,
+    content_length: file.size,
+  });
+  await putObject(presign, file);
+  return presign.object_key;
+}
+
+async function putObject(presign: PresignUploadResult, file: File): Promise<void> {
   let res: Response;
   try {
     res = await fetch(presign.upload_url, {
@@ -25,6 +41,4 @@ export async function uploadReportImage(file: File): Promise<string> {
   if (!res.ok) {
     throw new ApiError(res.status, { code: "UPLOAD_FAILED", message: "Image upload failed. Try again." });
   }
-
-  return presign.object_key;
 }

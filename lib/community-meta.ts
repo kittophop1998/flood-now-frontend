@@ -3,6 +3,7 @@
 // features, sharing its tone scale so the same meaning always looks the
 // same (teal ok / amber caution / red danger), always with an icon + label.
 import {
+  Ambulance,
   Anchor,
   Briefcase,
   Cctv,
@@ -36,16 +37,19 @@ import {
   TrafficCone,
   TriangleAlert,
   Truck,
+  Unplug,
   UsersRound,
   Utensils,
   Waves,
   Wrench,
+  Zap,
   CarFront,
   Accessibility,
   type LucideIcon,
 } from "lucide-react";
 import type { Tone } from "@/lib/report-meta";
 import type {
+  AnnouncementSeverity,
   AnnouncementType,
   AreaLevel,
   Capability,
@@ -146,7 +150,24 @@ export const ANNOUNCEMENT_TYPE_META: Record<AnnouncementType, LucideIcon> = {
   construction: TrafficCone,
   safety_notice: ShieldAlert,
   general: Megaphone,
+  traffic_notice: CarFront,
+  accident_emergency: Ambulance,
+  power_utility: Zap,
+  service_disruption: Unplug,
 };
+
+// Impact/urgency of an announcement, on the report severity tone scale plus
+// a neutral "info" level for notices that aren't a hazard.
+export const ANNOUNCEMENT_SEVERITY_META: Record<AnnouncementSeverity, { icon: LucideIcon; tone: Tone }> = {
+  info: { icon: Info, tone: "muted" },
+  low: { icon: Info, tone: "info" },
+  moderate: { icon: TriangleAlert, tone: "warn" },
+  high: { icon: OctagonAlert, tone: "avoid" },
+  critical: { icon: Siren, tone: "danger" },
+};
+
+// Radius presets for an announcement's affected area (metres).
+export const ANNOUNCEMENT_RADIUS_PRESETS_M = [500, 1000, 3000, 5000] as const;
 
 // Official announcements are always marked with this, community reports
 // never are, so the two can't be confused.

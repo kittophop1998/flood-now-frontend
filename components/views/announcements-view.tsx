@@ -5,13 +5,12 @@ import { ChevronRight, CircleAlert, Megaphone } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
-import { OfficialBadge } from "@/components/community/badges";
-import { SeverityBadge } from "@/components/report/report-badges";
+import { AnnouncementSeverityBadge, AnnouncementTypeIcon, OfficialBadge } from "@/components/community/badges";
+import { AnnouncementThumb } from "@/components/layers/announcement-images";
 import { EmptyState, ViewShell } from "@/components/views/view-shell";
 import { announcementsService } from "@/services/community-service";
 import { isAbortError } from "@/services/api-client";
 import { useNow } from "@/features/common/use-now";
-import { ANNOUNCEMENT_TYPE_META } from "@/lib/community-meta";
 import { formatClockTime } from "@/lib/freshness";
 import { useTranslation } from "@/lib/i18n/locale-context";
 import type { LayerFilters } from "@/features/layers/use-viewport-layers";
@@ -92,7 +91,6 @@ export function AnnouncementsView({
 export function AnnouncementCard({ announcement: a, onOpen }: { announcement: Announcement; onOpen: () => void }) {
   const { t, locale } = useTranslation();
   const now = useNow();
-  const Icon = ANNOUNCEMENT_TYPE_META[a.type];
   return (
     <button
       type="button"
@@ -101,18 +99,19 @@ export function AnnouncementCard({ announcement: a, onOpen }: { announcement: An
     >
       <span className="flex flex-wrap items-center gap-1.5">
         <OfficialBadge />
-        <SeverityBadge severity={a.severity} />
+        <AnnouncementSeverityBadge severity={a.severity} />
         {a.status === "expired" && <span className="text-xs font-semibold text-muted-foreground">{t("announcementEnded")}</span>}
       </span>
       <span className="flex items-start gap-2">
-        <Icon className="mt-0.5 size-5 shrink-0 text-indigo-700" aria-hidden />
+        <AnnouncementTypeIcon type={a.type} className="mt-0.5 size-5 shrink-0 text-indigo-700" />
         <span className="min-w-0 flex-1">
           <span className="block font-semibold">{a.title}</span>
           <span className="block text-xs text-muted-foreground">
             {t(`annType.${a.type}`)} · {a.source_name} · {formatClockTime(a.starts_at, locale, now)}
           </span>
         </span>
-        <ChevronRight className="size-5 shrink-0 text-muted-foreground" aria-hidden />
+        <AnnouncementThumb images={a.images} />
+        <ChevronRight className="size-5 shrink-0 self-center text-muted-foreground" aria-hidden />
       </span>
     </button>
   );

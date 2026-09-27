@@ -4,15 +4,15 @@ import type { ReactNode } from "react";
 import { Clock, ExternalLink, MapPin, Navigation, Phone, WifiOff } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { DetailLinkButton, DetailList, DetailPopup, DetailRow } from "@/components/ui/detail-popup";
-import { OfficialBadge, PlaceStatusBadge, UserAddedBadge } from "@/components/community/badges";
+import { AnnouncementSeverityBadge, AnnouncementTypeIcon, OfficialBadge, PlaceStatusBadge, UserAddedBadge } from "@/components/community/badges";
+import { AnnouncementGallery } from "@/components/layers/announcement-images";
 import { FloodSwatch } from "@/components/map/official-flood-legend";
 import { CctvGlyph } from "@/components/map/cctv-legend";
-import { SeverityBadge } from "@/components/report/report-badges";
 import { useNow } from "@/features/common/use-now";
 import { useOnlineStatus } from "@/features/common/use-online-status";
 import { useCctvNear } from "@/features/layers/use-doh-cctv";
 import { cctvRoadLabel, cctvTitle, floodAreaBBox } from "@/lib/cctv";
-import { ANNOUNCEMENT_TYPE_META, IMPORTANT_PLACE_META } from "@/lib/community-meta";
+import { IMPORTANT_PLACE_META } from "@/lib/community-meta";
 import { directionsUrl } from "@/lib/directions";
 import { formatDistance } from "@/lib/distance";
 import { formatClockTime, formatFreshness } from "@/lib/freshness";
@@ -132,30 +132,34 @@ export function ImportantPlacePopup({
 
 // Detail popup for an official announcement: source and times are always
 // visible, and it's labelled OFFICIAL so it can't be mistaken for a report.
+// It has none of the community actions (votes, reactions, confirmations).
+// `preview` marks the admin form's "preview" rendering of an unsaved draft.
 export function AnnouncementPopup({
   announcement: a,
   onClose,
   onVisibleHeightChange,
+  preview,
 }: {
   announcement: Announcement;
   onClose: () => void;
   onVisibleHeightChange?: (px: number) => void;
+  preview?: boolean;
 }) {
   const { t, locale } = useTranslation();
   const now = useNow();
-  const Icon = ANNOUNCEMENT_TYPE_META[a.type];
   const headingId = `announcement-${a.id}-title`;
   const hasPoint = a.latitude != null && a.longitude != null;
 
   const header = (
     <div className="flex items-start gap-3">
       <span className="flex size-12 shrink-0 items-center justify-center rounded-2xl bg-indigo-700 text-white shadow-sm">
-        <Icon className="size-6" aria-hidden />
+        <AnnouncementTypeIcon type={a.type} className="size-6" />
       </span>
       <div className="flex min-w-0 flex-1 flex-col gap-1.5">
         <div className="flex flex-wrap items-center gap-1.5">
           <OfficialBadge />
-          <SeverityBadge severity={a.severity} />
+          <AnnouncementSeverityBadge severity={a.severity} />
+          <span className="text-xs font-semibold text-indigo-800">{t(`annType.${a.type}`)}</span>
         </div>
         <h2 id={headingId} tabIndex={-1} className="text-lg leading-snug font-semibold outline-none sm:text-xl">
           {a.title}
@@ -186,12 +190,18 @@ export function AnnouncementPopup({
 
   return (
     <DetailPopup labelledBy={headingId} onClose={onClose} header={header} footer={footer} accent="#4338ca" onVisibleHeightChange={onVisibleHeightChange}>
+      {preview && <p className="rounded-xl bg-amber-50 px-3 py-2 text-sm font-medium text-amber-900">{t("annPreviewNote")}</p>}
+      <AnnouncementGallery images={a.images} />
       <p className="text-[15px] leading-relaxed break-words whitespace-pre-line">{a.body}</p>
       <DetailList>
         <DetailRow label={t("announcementType")}>{t(`annType.${a.type}`)}</DetailRow>
         <DetailRow label={t("announcementStarts")}>{formatClockTime(a.starts_at, locale, now)}</DetailRow>
         <DetailRow label={t("announcementEnds")}>{a.ends_at ? formatClockTime(a.ends_at, locale, now) : t("announcementNoEnd")}</DetailRow>
-        {a.radius_m != null && <DetailRow label={t("announcementArea")}>{t("announcementRadius", { d: formatDistance(a.radius_m, t) })}</DetailRow>}
+        {hasPoint && (
+          <DetailRow label={t("announcementArea")}>
+            {a.radius_m != null ? t("announcementRadius", { d: formatDistance(a.radius_m, t) }) : t("annRadiusPoint")}
+          </DetailRow>
+        )}
         <DetailRow label={t("announcementUpdated")}>{formatFreshness(a.updated_at, t, now)}</DetailRow>
       </DetailList>
       <p className="text-xs text-muted-foreground">{t("announcementDisclaimer")}</p>

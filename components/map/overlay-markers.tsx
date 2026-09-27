@@ -1,7 +1,8 @@
 "use client";
 
 import { memo } from "react";
-import { ANNOUNCEMENT_TYPE_META, CCTV_META, IMPORTANT_PLACE_META, OFFICIAL_ICON } from "@/lib/community-meta";
+import { CCTV_META, IMPORTANT_PLACE_META, OFFICIAL_ICON } from "@/lib/community-meta";
+import { AnnouncementTypeIcon } from "@/components/community/badges";
 import { SEVERITY_META } from "@/lib/report-meta";
 import { cn } from "@/lib/utils";
 import type { Announcement, ImportantPlace } from "@/types/community";
@@ -81,7 +82,6 @@ export const AnnouncementMarker = memo(function AnnouncementMarker({
   label: string;
   selected: boolean;
 }) {
-  const Icon = ANNOUNCEMENT_TYPE_META[announcement.type];
   return (
     <button type="button" aria-label={label} aria-pressed={selected} className="group relative flex size-11 items-center justify-center outline-none">
       <span
@@ -90,7 +90,7 @@ export const AnnouncementMarker = memo(function AnnouncementMarker({
           selected && "scale-110 ring-4 ring-indigo-300",
         )}
       >
-        <Icon className="size-5" aria-hidden />
+        <AnnouncementTypeIcon type={announcement.type} className="size-5" />
       </span>
       <span className="absolute -right-0.5 -bottom-0.5 flex size-5 items-center justify-center rounded-full border-2 border-white bg-indigo-900 text-white" aria-hidden>
         <OFFICIAL_ICON className="size-3" />

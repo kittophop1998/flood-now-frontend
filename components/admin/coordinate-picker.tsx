@@ -9,6 +9,7 @@ import { CenterPin } from "@/components/map/center-pin";
 import { useApproximateAddress } from "@/features/reports/use-location-lookups";
 import { requestPosition, DEFAULT_CENTER } from "@/features/reports/use-geolocation";
 import { useTranslation } from "@/lib/i18n/locale-context";
+import { cn } from "@/lib/utils";
 
 type LatLng = { latitude: number; longitude: number };
 
@@ -21,15 +22,25 @@ const PickerMap = dynamic(() => import("@/components/admin/coordinate-picker-map
 // with the same drag-the-map-under-a-fixed-pin flow as the main app's
 // LocationPicker (components/map/location-picker.tsx), minus the
 // report-specific "nearby reports at this pin" panel.
-export function CoordinatePickerButton({ value, onPick }: { value: LatLng | null; onPick: (point: LatLng) => void }) {
+export function CoordinatePickerButton({
+  value,
+  onPick,
+  label,
+  className,
+}: {
+  value: LatLng | null;
+  onPick: (point: LatLng) => void;
+  label?: string;
+  className?: string;
+}) {
   const { t } = useTranslation();
   const [open, setOpen] = useState(false);
 
   return (
     <>
-      <Button type="button" variant="outline" className="h-11 gap-1.5 rounded-xl" onClick={() => setOpen(true)}>
+      <Button type="button" variant="outline" className={cn("h-11 gap-1.5 rounded-xl", className)} onClick={() => setOpen(true)}>
         <MapPinned aria-hidden />
-        {t("adminPickOnMap")}
+        {label ?? t("adminPickOnMap")}
       </Button>
       {open && (
         <CoordinatePickerDialog

@@ -2,10 +2,12 @@
 
 import type { ReactNode } from "react";
 import type { LucideIcon } from "lucide-react";
-import { ShieldCheck, UserRoundPlus, UsersRound } from "lucide-react";
+import { Megaphone, ShieldCheck, UserRoundPlus, UsersRound } from "lucide-react";
 import { CATEGORY_META, categoryLabel, severityRank, toneClass, type Tone } from "@/lib/report-meta";
 import { formatDistance } from "@/lib/distance";
 import {
+  ANNOUNCEMENT_SEVERITY_META,
+  ANNOUNCEMENT_TYPE_META,
   AREA_LEVEL_META,
   IMPORTANT_PLACE_STATUS_META,
   OFFICIAL_ICON,
@@ -14,7 +16,7 @@ import {
 } from "@/lib/community-meta";
 import { useTranslation } from "@/lib/i18n/locale-context";
 import { cn } from "@/lib/utils";
-import type { AreaLevel, ImportantPlaceStatus, RouteRisk, SavedPlace, SosStatus } from "@/types/community";
+import type { AnnouncementSeverity, AnnouncementType, AreaLevel, ImportantPlaceStatus, RouteRisk, SavedPlace, SosStatus } from "@/types/community";
 
 const badgeBase = "inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs font-semibold leading-5 whitespace-nowrap";
 
@@ -103,6 +105,24 @@ export function OfficialBadge({ className }: { className?: string }) {
       <OFFICIAL_ICON className="size-3.5" aria-hidden />
       {t("sourceOfficial")}
     </span>
+  );
+}
+
+// Category icon of an announcement; a type this build doesn't know yet (a
+// newer API) falls back to the generic notice icon instead of crashing.
+export function AnnouncementTypeIcon({ type, className }: { type: AnnouncementType; className?: string }) {
+  const Icon = ANNOUNCEMENT_TYPE_META[type] ?? Megaphone;
+  return <Icon className={className} aria-hidden />;
+}
+
+// Impact/urgency of an official announcement (includes the neutral "info").
+export function AnnouncementSeverityBadge({ severity, className }: { severity: AnnouncementSeverity; className?: string }) {
+  const { t } = useTranslation();
+  const meta = ANNOUNCEMENT_SEVERITY_META[severity] ?? ANNOUNCEMENT_SEVERITY_META.info;
+  return (
+    <ToneBadge icon={meta.icon} tone={meta.tone} className={className}>
+      {t(`annSeverity.${severity}`)}
+    </ToneBadge>
   );
 }
 
