@@ -40,8 +40,9 @@ export const DEFAULT_LAYERS: LayerFilters = {
 };
 
 // Map overlay data (important places, official announcements) for the
-// current viewport — only for layers that are switched on, debounced, with
-// stale requests cancelled.
+// current viewport — debounced, with stale requests cancelled. Places load
+// only while their layer is on; announcements always load, because the map
+// banner shows them even when their markers are switched off.
 export function useViewportLayers(viewport: Viewport | null, layers: LayerFilters) {
   const [places, setPlaces] = useState<ImportantPlace[]>(() => readCache<ImportantPlace[]>(PLACES_CACHE_KEY)?.data ?? []);
   const [placesStatus, setPlacesStatus] = useState<"idle" | "loading" | "ready" | "error" | "zoom">("idle");
@@ -90,7 +91,7 @@ export function useViewportLayers(viewport: Viewport | null, layers: LayerFilter
   }, [viewport, layers.places, placeKey]);
 
   useEffect(() => {
-    if (!layers.announcements || !viewport) return;
+    if (!viewport) return;
     const timer = setTimeout(async () => {
       annAbort.current?.abort();
       const controller = new AbortController();
@@ -102,7 +103,7 @@ export function useViewportLayers(viewport: Viewport | null, layers: LayerFilter
       }
     }, DEBOUNCE_MS);
     return () => clearTimeout(timer);
-  }, [viewport, layers.announcements]);
+  }, [viewport]);
 
   useEffect(
     () => () => {
@@ -118,5 +119,7 @@ export function useViewportLayers(viewport: Viewport | null, layers: LayerFilter
     placesStaleSince,
     // Announcements with a location are drawn on the map; the rest only list.
     announcements: layers.announcements ? announcements.filter((a) => a.latitude != null && a.longitude != null) : [],
+    // Every announcement for this viewport (incl. area-less ones), most severe first.
+    bannerAnnouncements: announcements,
   };
 }

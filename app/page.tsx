@@ -9,6 +9,7 @@ import { BottomNav, type AppTab } from "@/components/bottom-nav";
 import { InstallPrompt } from "@/components/install-prompt";
 import { MapNotice, MapStatusPill } from "@/components/map/map-states";
 import { MapTopBar } from "@/components/map/map-top-bar";
+import { AnnouncementBanner } from "@/components/map/announcement-banner";
 import { FilterSheet } from "@/components/map/filter-sheet";
 import { LayersSheet } from "@/components/map/layers-sheet";
 import { LocationPicker } from "@/components/map/location-picker";
@@ -631,6 +632,11 @@ export default function HomePage() {
             layersActive={layersActive}
           />
           <div className="flex flex-col items-center gap-2 px-3">
+            <AnnouncementBanner
+              announcements={layerData.bannerAnnouncements}
+              onOpen={(announcement) => openLayerItem({ kind: "announcement", announcement })}
+              onViewAll={() => openMore("announcements")}
+            />
             {!online && (
               <MapNotice icon={<WifiOff />} tone="warn">
                 {staleClock ? t("offlineShowingAsOf", { when: staleClock }) : t("offlineNotice")}
