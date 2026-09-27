@@ -148,8 +148,6 @@ export const en = {
   follow: "Follow",
   following: "Following",
   followed: "You'll see updates in Alerts.",
-  expandSheet: "Show details",
-  collapseSheet: "Show less",
   reportNotFound: "This report is no longer available.",
   severityHeading: "Severity",
   reportedAtLabel: "Reported",

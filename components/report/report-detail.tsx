@@ -2,38 +2,22 @@
 
 import { useState, type ReactNode } from "react";
 import { toast } from "sonner";
-import {
-  Bell,
-  BellRing,
-  CircleCheck,
-  CircleX,
-  Clock,
-  Flag,
-  PenLine,
-  Loader2,
-  MapPin,
-  Navigation,
-  Phone,
-  Route,
-  Share2,
-  X,
-} from "lucide-react";
+import { Bell, BellRing, CircleCheck, CircleX, Clock, Flag, Loader2, MapPin, Navigation, PenLine, Phone, Share2, UsersRound } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { BottomSheet, type SheetSnap } from "@/components/ui/bottom-sheet";
-import { ReportSummary } from "@/components/report/report-card";
+import { DetailLinkButton, DetailList, DetailPopup, DetailRow, DetailSection } from "@/components/ui/detail-popup";
 import { ReportProblemDialog } from "@/components/report/report-problem-dialog";
 import { ReportUpdateDialog } from "@/components/report/report-update-dialog";
 import { CommunityBadge } from "@/components/community/badges";
-import { NearbyCctv } from "@/components/layers/layer-detail-sheet";
+import { NearbyCctv } from "@/components/layers/layer-detail";
 import { PassabilityGrid } from "@/components/report/passability";
-import { DepthGauge, SeverityBadge } from "@/components/report/report-badges";
+import { CategoryIcon, DepthGauge, SeverityBadge, StatusBadge, WaterDepthBadge } from "@/components/report/report-badges";
 import { useConfirmReport } from "@/features/reports/use-confirm-report";
 import { useApproximateAddress } from "@/features/reports/use-location-lookups";
 import { useNow } from "@/features/common/use-now";
 import { getConfirmation, isInCooldown, setConfirmation, type DeviceConfirmation } from "@/lib/confirmed-reports";
 import { directionsUrl, reportShareUrl, shareLink } from "@/lib/directions";
 import { distanceMeters, formatDistance } from "@/lib/distance";
-import { formatClockTime, formatDuration, formatFreshness } from "@/lib/freshness";
+import { formatClockTime, formatDuration, formatFreshness, freshnessLine } from "@/lib/freshness";
 import { reportShareText } from "@/lib/share";
 import { imageKitUrl } from "@/lib/imagekit";
 import { CATEGORY_META, WATER_DEPTH_META, hasKnownPassability, reportTitle, waterDepthLabel } from "@/lib/report-meta";
@@ -45,8 +29,8 @@ import type { CctvCamera } from "@/types/community";
 
 type LatLng = { latitude: number; longitude: number };
 
-// Render with `key={report.id}` so switching reports resets snap/vote state.
-export function ReportDetailSheet({
+// Render with `key={report.id}` so switching reports resets vote state.
+export function ReportDetailPopup({
   report,
   userLocation,
   onClose,
@@ -74,7 +58,6 @@ export function ReportDetailSheet({
 }) {
   const { t, locale } = useTranslation();
   const now = useNow();
-  const [snap, setSnap] = useState<SheetSnap>("peek");
   const { confirm, pendingStatus, error } = useConfirmReport();
   const [deviceVote, setDeviceVote] = useState<DeviceConfirmation | null>(() => getConfirmation(report.id));
   const [justVoted, setJustVoted] = useState<ConfirmationStatus | "updated" | null>(null);
@@ -153,254 +136,245 @@ export function ReportDetailSheet({
     if (ok && !following) toast.success(t("followed"));
   }
 
-  const peek = (
-    <div className="flex flex-col gap-3 px-4 pb-4">
-      <div className="flex items-start gap-2">
-        <div className="min-w-0 flex-1">
-          <ReportSummary
-            report={report}
-            now={now}
-            headingId={headingId}
-            headingAs="h2"
-            distanceM={place ? distance : null}
-            locationText={locationText}
-          />
+  const title = reportTitle(t, report);
+
+  const header = (
+    <div className={cn("flex items-start gap-3", status !== "active" && "opacity-90")}>
+      <CategoryIcon type={report.type} size="lg" className={cn("shadow-sm", status === "possibly_stale" && "saturate-50")} />
+      <div className="flex min-w-0 flex-1 flex-col gap-1.5">
+        <h2 id={headingId} tabIndex={-1} className="text-lg leading-snug font-semibold outline-none sm:text-xl">
+          {title}
+        </h2>
+        <div className="flex flex-wrap items-center gap-1.5">
+          <SeverityBadge severity={report.severity} />
+          {status !== "active" && <StatusBadge status={status} />}
+          {report.type === "flooded" && report.water_depth && report.water_depth !== "unknown" && (
+            <WaterDepthBadge depth={report.water_depth} />
+          )}
         </div>
-        <Button variant="ghost" size="icon" className="-mt-1 -mr-2 size-11 shrink-0 rounded-full" onClick={onClose} aria-label={t("close")}>
-          <X className="size-5" />
-        </Button>
-      </div>
-      <div className="grid grid-cols-2 gap-2">
-        <Button
-          variant="outline"
-          className="h-11 rounded-xl text-sm"
-          onClick={() => setSnap(snap === "peek" ? "full" : "peek")}
-          aria-expanded={snap !== "peek"}
-        >
-          {snap === "peek" ? t("viewDetails") : t("collapseSheet")}
-        </Button>
-        <a
-          href={directionsUrl(report.latitude, report.longitude)}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="inline-flex h-11 items-center justify-center gap-1.5 rounded-xl bg-primary px-3 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
-        >
-          <Navigation className="size-4" aria-hidden />
-          {t("directions")}
-        </a>
+        <p className="flex flex-wrap items-center gap-x-2.5 gap-y-0.5 text-xs text-muted-foreground">
+          <span className="inline-flex items-center gap-1">
+            <Clock className="size-3.5" aria-hidden />
+            {freshnessLine(report, t, now)}
+          </span>
+          {report.still_active_count > 0 && (
+            <span className="inline-flex items-center gap-1">
+              <UsersRound className="size-3.5" aria-hidden />
+              {t("confirmationsCount", { n: report.still_active_count })}
+            </span>
+          )}
+          {locationText && (
+            <span className="inline-flex min-w-0 items-center gap-1">
+              <MapPin className="size-3.5 shrink-0" aria-hidden />
+              <span className="truncate">{place && distance != null ? `${locationText} · ${formatDistance(distance, t)}` : locationText}</span>
+            </span>
+          )}
+        </p>
       </div>
     </div>
   );
 
+  const footer = (
+    <div className="flex items-center gap-2">
+      <Button variant="outline" className="h-11 flex-1 rounded-xl bg-background sm:flex-none sm:px-4" onClick={handleShare}>
+        <Share2 aria-hidden />
+        {t("share")}
+      </Button>
+      <Button
+        variant="outline"
+        className={cn("h-11 flex-1 rounded-xl bg-background sm:flex-none sm:px-4", following && "border-primary/40 bg-accent text-accent-foreground")}
+        onClick={handleFollow}
+        disabled={followPending}
+        aria-pressed={following}
+      >
+        {following ? <BellRing aria-hidden /> : <Bell aria-hidden />}
+        {following ? t("following") : t("follow")}
+      </Button>
+      <DetailLinkButton href={directionsUrl(report.latitude, report.longitude)} className="flex-[1.4] sm:ml-auto sm:flex-none sm:px-5">
+        <Navigation aria-hidden />
+        {t("directions")}
+      </DetailLinkButton>
+    </div>
+  );
+
   return (
-    <BottomSheet
-      open
-      snap={snap}
-      onSnapChange={setSnap}
-      onClose={onClose}
+    <DetailPopup
       labelledBy={headingId}
-      peek={peek}
-      expandLabel={t("expandSheet")}
-      collapseLabel={t("collapseSheet")}
+      onClose={onClose}
+      header={header}
+      footer={footer}
+      accent={CATEGORY_META[report.type].color}
       onVisibleHeightChange={onVisibleHeightChange}
     >
-      <div className="flex flex-col gap-5 border-t px-4 pt-4">
-        <CommunityBadge className="self-start" />
-        <StatusNotice report={report} status={status} now={now} />
+      <StatusNotice report={report} status={status} now={now} />
 
-        {imageUrl && (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
-            src={imageUrl}
-            alt={t("reportPhotoAlt")}
-            loading="lazy"
-            className="aspect-[4/3] w-full rounded-2xl bg-muted object-cover"
-          />
-        )}
+      {imageUrl && (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          src={imageUrl}
+          alt={t("reportPhotoAlt")}
+          loading="lazy"
+          className="aspect-[16/10] w-full rounded-2xl bg-muted object-cover"
+        />
+      )}
 
-        {fields.passability && hasKnownPassability(report.passability) && (
-          <Section title={t("passabilityHeading")}>
-            <PassabilityGrid passability={report.passability} />
-          </Section>
-        )}
+      {fields.passability && hasKnownPassability(report.passability) && (
+        <DetailSection title={t("passabilityHeading")}>
+          <PassabilityGrid passability={report.passability} />
+        </DetailSection>
+      )}
 
-        <Section title={t("situationQuestion")}>
-          <div className="grid grid-cols-3 gap-2">
-            <VoteButton
-              selected={false}
-              pending={false}
-              disabled={pendingStatus !== null}
-              icon={<PenLine />}
-              hint={t("voteStillChangedHint")}
-              onClick={openUpdate}
-              aria-haspopup="dialog"
-            >
-              {t("voteStillChanged")}
-            </VoteButton>
-            <VoteButton
-              selected={deviceVote?.status === "still_active"}
-              pending={pendingStatus === "still_active" && !updateOpen}
-              disabled={pendingStatus !== null}
-              icon={<CircleCheck />}
-              hint={t("voteUnchangedHint")}
-              onClick={() => handleVote("still_active")}
-            >
-              {t("voteUnchanged")}
-            </VoteButton>
-            <VoteButton
-              selected={deviceVote?.status === "cleared"}
-              pending={pendingStatus === "cleared"}
-              disabled={pendingStatus !== null}
-              icon={<CircleX />}
-              hint={t("voteGoneHint")}
-              onClick={() => handleVote("cleared")}
-            >
-              {t("voteGone")}
-            </VoteButton>
-          </div>
-          <p className="text-xs text-muted-foreground">
-            {t("confirmationsCount", { n: report.still_active_count })} · {t("clearedCount", { n: report.cleared_count })}
-          </p>
-          <div aria-live="polite" className="text-sm empty:hidden">
-            {queuedVote ? (
-              <p className="text-amber-800">{t("voteQueued")}</p>
-            ) : error ? (
-              <p className="text-destructive">{error}</p>
-            ) : (
-              justVoted && (
-                <p className="text-teal-700">
-                  {t(justVoted === "cleared" ? "clearedSuccess" : justVoted === "updated" ? "updateSuccess" : "confirmSuccess")}
-                </p>
-              )
-            )}
-          </div>
-        </Section>
+      <section className="flex flex-col gap-2.5 rounded-2xl bg-muted/60 p-3.5">
+        <h3 className="text-sm font-semibold">{t("situationQuestion")}</h3>
+        <div className="grid grid-cols-3 gap-2">
+          <VoteButton
+            selected={false}
+            pending={false}
+            disabled={pendingStatus !== null}
+            icon={<PenLine />}
+            hint={t("voteStillChangedHint")}
+            onClick={openUpdate}
+            aria-haspopup="dialog"
+          >
+            {t("voteStillChanged")}
+          </VoteButton>
+          <VoteButton
+            selected={deviceVote?.status === "still_active"}
+            pending={pendingStatus === "still_active" && !updateOpen}
+            disabled={pendingStatus !== null}
+            icon={<CircleCheck />}
+            hint={t("voteUnchangedHint")}
+            onClick={() => handleVote("still_active")}
+          >
+            {t("voteUnchanged")}
+          </VoteButton>
+          <VoteButton
+            selected={deviceVote?.status === "cleared"}
+            pending={pendingStatus === "cleared"}
+            disabled={pendingStatus !== null}
+            icon={<CircleX />}
+            hint={t("voteGoneHint")}
+            onClick={() => handleVote("cleared")}
+          >
+            {t("voteGone")}
+          </VoteButton>
+        </div>
+        <p className="text-xs text-muted-foreground">
+          {t("confirmationsCount", { n: report.still_active_count })} · {t("clearedCount", { n: report.cleared_count })}
+        </p>
+        <div aria-live="polite" className="text-sm empty:hidden">
+          {queuedVote ? (
+            <p className="text-amber-800">{t("voteQueued")}</p>
+          ) : error ? (
+            <p className="text-destructive">{error}</p>
+          ) : (
+            justVoted && (
+              <p className="text-teal-700">
+                {t(justVoted === "cleared" ? "clearedSuccess" : justVoted === "updated" ? "updateSuccess" : "confirmSuccess")}
+              </p>
+            )
+          )}
+        </div>
+      </section>
 
-        <dl className="grid grid-cols-[auto_1fr] gap-x-5 gap-y-2.5 text-sm">
-          <Row label={t("severityHeading")}>
-            <span className="flex flex-wrap items-center gap-1.5">
-              <SeverityBadge severity={report.severity} />
-              <span className="text-muted-foreground">{t(`severityHint.${report.severity}`)}</span>
-            </span>
-          </Row>
-          {fields.waterDepth && report.water_depth && (
-            <Row label={t("waterDepthLabel")}>
-              <span className="flex items-center gap-2">
-                <DepthGauge depth={report.water_depth} />
-                {waterDepthLabel(t, report.water_depth)}
-                {WATER_DEPTH_META[report.water_depth].rangeKey && (
-                  <span className="text-muted-foreground">({t(WATER_DEPTH_META[report.water_depth].rangeKey!)})</span>
-                )}
-              </span>
-            </Row>
-          )}
-          {report.water_level_cm != null && (
-            <Row label={t("waterDepthLabel")}>{t("waterLevelValue", { n: report.water_level_cm })}</Row>
-          )}
-          <Row label={t("reportedAtLabel")}>
-            <time dateTime={report.created_at}>
-              {formatClockTime(report.created_at, locale, now)} · {formatFreshness(report.created_at, t, now)}
-            </time>
-          </Row>
-          <Row label={t("lastConfirmedLabel")}>
-            <time dateTime={report.last_verified_at}>{formatFreshness(report.last_verified_at, t, now)}</time>
-          </Row>
-          {report.people_count != null && (
-            <Row label={t("peopleCountLabel")}>
-              {t(report.people_count === 1 ? "personCountOne" : "personCountOther", { n: report.people_count })}
-            </Row>
-          )}
-          {(report.has_child || report.has_elderly) && (
-            <Row label={t("vulnerableLabel")}>
-              {[report.has_child && t("childrenValue"), report.has_elderly && t("elderlyValue")].filter(Boolean).join(", ")}
-            </Row>
-          )}
-          {report.contact_phone && (
-            <Row label={t("contactLabel")}>
-              <a href={`tel:${report.contact_phone}`} className="inline-flex min-h-6 items-center gap-1.5 text-primary underline-offset-2 hover:underline">
-                <Phone className="size-3.5" aria-hidden />
-                {report.contact_phone}
-              </a>
-            </Row>
-          )}
-          <Row label={t("locationHeading")}>
-            <span className="flex flex-col gap-0.5">
-              <span className="flex items-start gap-1.5">
-                <MapPin className="mt-0.5 size-3.5 shrink-0 text-muted-foreground" aria-hidden />
-                <span>{place?.display_name ?? locationText ?? t("locationPinned")}</span>
-              </span>
-              <button
-                type="button"
-                className="self-start text-xs text-muted-foreground underline-offset-2 hover:underline focus-visible:underline"
-                aria-expanded={showCoords}
-                onClick={() => setShowCoords((v) => !v)}
-              >
-                {showCoords ? t("hideCoordinates") : t("showCoordinates")}
-              </button>
-              {showCoords && (
-                <span className="text-xs text-muted-foreground tabular-nums select-all">
-                  {report.latitude.toFixed(5)}, {report.longitude.toFixed(5)}
-                </span>
+      {report.description?.trim() && (
+        <DetailSection title={t("descriptionHeading")}>
+          <p className="text-sm leading-relaxed break-words whitespace-pre-line">{report.description}</p>
+        </DetailSection>
+      )}
+
+      <DetailList>
+        <DetailRow label={t("severityHeading")}>
+          <span className="flex flex-wrap items-center gap-1.5">
+            <SeverityBadge severity={report.severity} />
+            <span className="text-muted-foreground">{t(`severityHint.${report.severity}`)}</span>
+          </span>
+        </DetailRow>
+        {fields.waterDepth && report.water_depth && (
+          <DetailRow label={t("waterDepthLabel")}>
+            <span className="flex flex-wrap items-center gap-2">
+              <DepthGauge depth={report.water_depth} />
+              {waterDepthLabel(t, report.water_depth)}
+              {WATER_DEPTH_META[report.water_depth].rangeKey && (
+                <span className="text-muted-foreground">({t(WATER_DEPTH_META[report.water_depth].rangeKey!)})</span>
               )}
             </span>
-          </Row>
-        </dl>
-
-        {report.description?.trim() && (
-          <Section title={t("descriptionHeading")}>
-            <p className="text-sm leading-relaxed break-words whitespace-pre-line">{report.description}</p>
-          </Section>
+          </DetailRow>
         )}
-
-        <NearbyCctv at={report} enabled={cctvEnabled} onOpen={onOpenCamera} />
-
-        {report.type === "help_needed" && (
-          <p className="rounded-xl bg-red-50 px-3 py-2.5 text-xs leading-relaxed text-red-800">{t("helpNotDispatchNotice")}</p>
+        {report.water_level_cm != null && (
+          <DetailRow label={t("waterDepthLabel")}>{t("waterLevelValue", { n: report.water_level_cm })}</DetailRow>
         )}
+        <DetailRow label={t("reportedAtLabel")}>
+          <time dateTime={report.created_at}>
+            {formatClockTime(report.created_at, locale, now)} · {formatFreshness(report.created_at, t, now)}
+          </time>
+        </DetailRow>
+        <DetailRow label={t("lastConfirmedLabel")}>
+          <time dateTime={report.last_verified_at}>{formatFreshness(report.last_verified_at, t, now)}</time>
+        </DetailRow>
+        {report.people_count != null && (
+          <DetailRow label={t("peopleCountLabel")}>
+            {t(report.people_count === 1 ? "personCountOne" : "personCountOther", { n: report.people_count })}
+          </DetailRow>
+        )}
+        {(report.has_child || report.has_elderly) && (
+          <DetailRow label={t("vulnerableLabel")}>
+            {[report.has_child && t("childrenValue"), report.has_elderly && t("elderlyValue")].filter(Boolean).join(", ")}
+          </DetailRow>
+        )}
+        {report.contact_phone && (
+          <DetailRow label={t("contactLabel")}>
+            <a href={`tel:${report.contact_phone}`} className="inline-flex min-h-6 items-center gap-1.5 text-primary underline-offset-2 hover:underline">
+              <Phone className="size-3.5" aria-hidden />
+              {report.contact_phone}
+            </a>
+          </DetailRow>
+        )}
+        <DetailRow label={t("locationHeading")}>
+          <span className="flex flex-col gap-0.5">
+            <span>{place?.display_name ?? locationText ?? t("locationPinned")}</span>
+            <button
+              type="button"
+              className="self-start text-xs font-normal text-muted-foreground underline-offset-2 hover:underline focus-visible:underline"
+              aria-expanded={showCoords}
+              onClick={() => setShowCoords((v) => !v)}
+            >
+              {showCoords ? t("hideCoordinates") : t("showCoordinates")}
+            </button>
+            {showCoords && (
+              <span className="text-xs font-normal text-muted-foreground tabular-nums select-all">
+                {report.latitude.toFixed(5)}, {report.longitude.toFixed(5)}
+              </span>
+            )}
+          </span>
+        </DetailRow>
+      </DetailList>
 
-        <div className="grid grid-cols-3 gap-2">
-          <Button variant="outline" className="h-12 flex-col gap-0.5 rounded-xl text-xs" onClick={handleShare}>
-            <Share2 className="size-4" aria-hidden />
-            {t("share")}
-          </Button>
-          <Button
-            variant="outline"
-            className={cn("h-12 flex-col gap-0.5 rounded-xl text-xs", following && "border-primary/40 bg-accent text-accent-foreground")}
-            onClick={handleFollow}
-            disabled={followPending}
-            aria-pressed={following}
-          >
-            {following ? <BellRing className="size-4" aria-hidden /> : <Bell className="size-4" aria-hidden />}
-            {following ? t("following") : t("follow")}
-          </Button>
-          <a
-            href={directionsUrl(report.latitude, report.longitude)}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-flex h-12 flex-col items-center justify-center gap-0.5 rounded-xl border bg-background text-xs font-medium transition-colors hover:bg-muted focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
-          >
-            <Route className="size-4" aria-hidden />
-            {t("viewRoute")}
-          </a>
-        </div>
-        <p className="-mt-3 text-center text-[11px] text-muted-foreground">{t("routeDisclaimer")}</p>
+      <NearbyCctv at={report} enabled={cctvEnabled} onOpen={onOpenCamera} />
 
-        <Button variant="ghost" className="h-11 self-center rounded-xl text-muted-foreground" onClick={() => setProblemOpen(true)}>
+      {report.type === "help_needed" && (
+        <p className="rounded-xl bg-red-50 px-3 py-2.5 text-xs leading-relaxed text-red-800">{t("helpNotDispatchNotice")}</p>
+      )}
+
+      <div className="flex flex-col items-center gap-1 border-t pt-4">
+        <CommunityBadge />
+        <p className="text-center text-[11px] text-muted-foreground">{t("routeDisclaimer")}</p>
+        <Button variant="ghost" className="h-10 rounded-xl text-muted-foreground" onClick={() => setProblemOpen(true)}>
           <Flag aria-hidden />
           {t("problemOpen")}
         </Button>
-        <ReportProblemDialog reportId={report.id} open={problemOpen} onOpenChange={setProblemOpen} />
-        <ReportUpdateDialog
-          key={updateKey}
-          report={report}
-          open={updateOpen}
-          onOpenChange={setUpdateOpen}
-          onSubmit={handleUpdate}
-          submitting={pendingStatus !== null}
-          error={updateOpen ? error : null}
-        />
       </div>
-    </BottomSheet>
+      <ReportProblemDialog reportId={report.id} open={problemOpen} onOpenChange={setProblemOpen} />
+      <ReportUpdateDialog
+        key={updateKey}
+        report={report}
+        open={updateOpen}
+        onOpenChange={setUpdateOpen}
+        onSubmit={handleUpdate}
+        submitting={pendingStatus !== null}
+        error={updateOpen ? error : null}
+      />
+    </DetailPopup>
   );
 }
 
@@ -423,24 +397,6 @@ function StatusNotice({ report, status, now }: { report: Report; status: Report[
       {status === "resolved" ? <CircleCheck className="mt-0.5 size-4 shrink-0" aria-hidden /> : <Clock className="mt-0.5 size-4 shrink-0" aria-hidden />}
       {message}
     </p>
-  );
-}
-
-function Section({ title, children }: { title: string; children: ReactNode }) {
-  return (
-    <section className="flex flex-col gap-2.5">
-      <h3 className="text-sm font-semibold">{title}</h3>
-      {children}
-    </section>
-  );
-}
-
-function Row({ label, children }: { label: string; children: ReactNode }) {
-  return (
-    <>
-      <dt className="text-muted-foreground">{label}</dt>
-      <dd className="min-w-0 font-medium">{children}</dd>
-    </>
   );
 }
 

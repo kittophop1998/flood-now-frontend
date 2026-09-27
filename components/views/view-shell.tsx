@@ -4,9 +4,10 @@ import { useEffect, type ReactNode } from "react";
 import { ArrowLeft } from "lucide-react";
 import { useTranslation } from "@/lib/i18n/locale-context";
 
-// Full-screen panel for non-map tabs. It covers the map (which stays mounted
+// Panel for non-map tabs. On phones it covers the map (which stays mounted
 // underneath, so returning to it keeps position and loaded reports) and
-// stops above the bottom navigation. Sub-screens of "More" pass onBack.
+// stops above the bottom navigation; on wide screens it floats at the left
+// with the map still visible beside it. Sub-screens of "More" pass onBack.
 export function ViewShell({
   title,
   subtitle,
@@ -33,9 +34,9 @@ export function ViewShell({
     <section
       aria-labelledby="view-title"
       hidden={hidden}
-      className="absolute inset-x-0 top-0 bottom-(--nav-h) z-20 flex flex-col bg-muted"
+      className="absolute inset-x-0 top-0 bottom-(--nav-h) z-20 flex flex-col bg-muted lg:inset-x-auto lg:top-3 lg:bottom-[calc(var(--nav-h)+0.75rem)] lg:left-3 lg:w-[440px] lg:overflow-hidden lg:rounded-3xl lg:border lg:shadow-[0_24px_60px_-12px_rgba(15,23,42,0.35)]"
     >
-      <header className="flex shrink-0 items-start gap-1 border-b bg-background px-4 pt-[calc(var(--safe-top)+0.875rem)] pb-3">
+      <header className="flex shrink-0 items-start gap-1 border-b bg-background px-4 pt-[calc(var(--safe-top)+0.875rem)] pb-3 lg:pt-4">
         {onBack && (
           <button
             type="button"

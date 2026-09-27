@@ -14,8 +14,8 @@ import { LayersSheet } from "@/components/map/layers-sheet";
 import { LocationPicker } from "@/components/map/location-picker";
 import { RouteSummary } from "@/components/map/route-summary";
 import { ReportForm, type ReportDraft } from "@/components/report/report-form";
-import { ReportDetailSheet } from "@/components/report/report-detail";
-import { AnnouncementSheet, CctvSheet, GistdaFloodSheet, ImportantPlaceSheet } from "@/components/layers/layer-detail-sheet";
+import { ReportDetailPopup } from "@/components/report/report-detail";
+import { AnnouncementPopup, CctvPopup, GistdaFloodPopup, ImportantPlacePopup } from "@/components/layers/layer-detail";
 import { OfficialFloodLegend } from "@/components/map/official-flood-legend";
 import { CctvLegend } from "@/components/map/cctv-legend";
 import { NearbyView } from "@/components/views/nearby-view";
@@ -622,7 +622,7 @@ export default function HomePage() {
       )}
 
       {sheetOpen && (
-        <ReportDetailSheet
+        <ReportDetailPopup
           key={selectedReport.id}
           report={selectedReport}
           userLocation={userLocation}
@@ -637,7 +637,7 @@ export default function HomePage() {
         />
       )}
       {layerSheetOpen && layerSelection.kind === "place" && (
-        <ImportantPlaceSheet
+        <ImportantPlacePopup
           key={layerSelection.place.id}
           place={layerSelection.place}
           onClose={() => setLayerSelection(null)}
@@ -645,7 +645,7 @@ export default function HomePage() {
         />
       )}
       {layerSheetOpen && layerSelection.kind === "announcement" && (
-        <AnnouncementSheet
+        <AnnouncementPopup
           key={layerSelection.announcement.id}
           announcement={layerSelection.announcement}
           onClose={() => setLayerSelection(null)}
@@ -653,7 +653,7 @@ export default function HomePage() {
         />
       )}
       {layerSheetOpen && layerSelection.kind === "cctv" && (
-        <CctvSheet
+        <CctvPopup
           key={layerSelection.camera.id}
           camera={layerSelection.camera}
           list={cctv.layer}
@@ -662,7 +662,7 @@ export default function HomePage() {
         />
       )}
       {layerSheetOpen && floodSelection && gistda.layer && (
-        <GistdaFloodSheet
+        <GistdaFloodPopup
           key={`${floodSelection.fetchedAt}:${floodSelection.area.ref}`}
           area={floodSelection.area}
           layer={gistda.layer}

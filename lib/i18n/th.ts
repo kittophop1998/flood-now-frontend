@@ -141,8 +141,6 @@ export const th: Record<TranslationKey, string> = {
   follow: "ติดตาม",
   following: "กำลังติดตาม",
   followed: "จะแสดงอัปเดตในหน้าแจ้งเตือน",
-  expandSheet: "ดูรายละเอียด",
-  collapseSheet: "ย่อ",
   reportNotFound: "ไม่พบรายงานนี้แล้ว",
   severityHeading: "ความรุนแรง",
   reportedAtLabel: "รายงานเมื่อ",
