@@ -53,7 +53,7 @@ import { useDohCctv } from "@/features/layers/use-doh-cctv";
 import { EMPTY_FLOOD_AREAS } from "@/lib/official-flood";
 import { withSelectedCamera } from "@/lib/cctv";
 import { reportsService } from "@/services/reports-service";
-import { setConfirmation } from "@/lib/confirmed-reports";
+import { getConfirmation, setConfirmation } from "@/lib/confirmed-reports";
 import { newClientId } from "@/lib/outbox";
 import { DEFAULT_FILTERS, applyClientFilters, type MapFilters } from "@/lib/map-filters";
 import { SITUATION_RADIUS_M, summarizeSituation } from "@/lib/situation";
@@ -249,7 +249,7 @@ export default function HomePage() {
   );
 
   const visibleReports = useMemo(
-    () => applyClientFilters(reports, filters, userLocation, now),
+    () => applyClientFilters(reports, filters, userLocation, now, (id) => getConfirmation(id)?.status === "cleared"),
     [reports, filters, userLocation, now],
   );
 

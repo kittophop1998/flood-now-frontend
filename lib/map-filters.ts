@@ -1,5 +1,5 @@
 import { distanceMeters } from "@/lib/distance";
-import { currentStatus } from "@/lib/report-status";
+import { currentStatus, isOpen } from "@/lib/report-status";
 import type { ListReportsQuery, Report, ReportStatus, ReportType, Severity, Vehicle } from "@/types/report";
 
 // Category options in the filter sheet. Shelter and aid point share one —
@@ -44,17 +44,18 @@ export const DEFAULT_FILTERS: MapFilters = {
   blockedFor: null,
 };
 
-// Every pin stays on the map: reports past their stale_at (and expired or
-// resolved ones) are shown faded by the marker instead of disappearing. The
-// zoomed-out zone counts use the same statuses, so they match the pins.
-export const ALL_STATUSES: ReportStatus[] = ["active", "possibly_stale", "expired", "resolved"];
+// Only open reports reach the map: once a report is resolved (enough "it's
+// gone" votes) or expired it disappears. Possibly-stale ones stay, faded by
+// the marker. The zoomed-out zone counts use the same statuses, so they match
+// the pins.
+export const OPEN_STATUSES: ReportStatus[] = ["active", "possibly_stale"];
 
 // The parts the API filters on.
 export function toListQuery(filters: MapFilters, now: Date = new Date()): Omit<ListReportsQuery, "bbox" | "limit"> {
   return {
     types: filters.types.length > 0 ? filters.types : undefined,
     severities: filters.severities.length > 0 ? filters.severities : undefined,
-    statuses: filters.activeOnly ? ["active"] : ALL_STATUSES,
+    statuses: filters.activeOnly ? ["active"] : OPEN_STATUSES,
     updatedSince:
       filters.updatedWithinMin != null
         ? new Date(now.getTime() - filters.updatedWithinMin * 60_000).toISOString()
@@ -65,14 +66,19 @@ export function toListQuery(filters: MapFilters, now: Date = new Date()): Omit<L
 // The parts that depend on the device (its location) or on nested fields the
 // list endpoint doesn't filter by, applied to the fetched viewport. Category,
 // severity and status are re-checked too so reports added locally (after a
-// create/confirm) respect the active filters.
+// create/confirm) respect the active filters, and a report that closes
+// between polls drops off right away. `clearedByMe` hides reports this device
+// voted "it's gone" on, before the API's resolve threshold is reached.
 export function applyClientFilters(
   reports: Report[],
   filters: MapFilters,
   userLocation: { latitude: number; longitude: number } | null,
   now: Date = new Date(),
+  clearedByMe: (reportId: string) => boolean = () => false,
 ): Report[] {
   return reports.filter((r) => {
+    if (!isOpen(currentStatus(r, now))) return false;
+    if (clearedByMe(r.id)) return false;
     if (filters.types.length > 0 && !filters.types.includes(r.type)) return false;
     if (filters.severities.length > 0 && !filters.severities.includes(r.severity)) return false;
     if (filters.activeOnly && currentStatus(r, now) !== "active") return false;

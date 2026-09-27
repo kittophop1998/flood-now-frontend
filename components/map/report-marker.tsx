@@ -9,9 +9,9 @@ import { useTranslation } from "@/lib/i18n/locale-context";
 import type { Report } from "@/types/report";
 
 // Severity shows as the ring weight + a small corner badge (icon, not just
-// color), so the map stays readable without a legend. Every report that
-// isn't active (past stale_at, expired or resolved) stays on the map but is
-// faded and dashed; help requests pulse as an urgency signal
+// color), so the map stays readable without a legend. Resolved and expired
+// reports never reach the map (see lib/map-filters.ts); a possibly-stale one
+// is faded and dashed; help requests pulse as an urgency signal
 // (never implying official dispatch — see docs/product-spec.md).
 // Reports updated within RECENT_WINDOW_MIN get a halo + clock badge and full
 // size; older ones shrink so the fresh picture stands out. Pins are never
