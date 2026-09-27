@@ -11,7 +11,7 @@ import type { Announcement } from "@/types/community";
 const iconButton =
   "flex size-9 shrink-0 items-center justify-center rounded-xl text-muted-foreground hover:bg-accent hover:text-foreground focus-visible:outline-2 focus-visible:outline-ring disabled:opacity-40 [&>svg]:size-4.5";
 
-// Official announcements for the map area, pinned under the top bar. Shows
+// Official announcements for the map area, pinned under the filter chips. Shows
 // one at a time (most severe first, as the API sorts them); tapping it opens
 // the announcement popup. It can be minimized to a small pill, and stays so
 // until a new announcement appears.
@@ -68,7 +68,7 @@ export function AnnouncementBanner({
     <section
       aria-label={t("annBannerCount", { n: count })}
       className={cn(
-        "pointer-events-auto w-full max-w-md overflow-hidden rounded-2xl border border-l-4 bg-background/95 shadow-md backdrop-blur",
+        "pointer-events-auto w-full overflow-hidden rounded-2xl border border-l-4 bg-background/95 shadow-md backdrop-blur",
         current.severity === "critical" ? "border-l-red-600" : current.severity === "high" ? "border-l-orange-600" : "border-l-indigo-700",
       )}
     >

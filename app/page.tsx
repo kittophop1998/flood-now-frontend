@@ -630,12 +630,15 @@ export default function HomePage() {
             onOpenLayers={() => setLayersSheetOpen(true)}
             layersActive={layersActive}
           />
-          <div className="flex flex-col items-center gap-2 px-3">
+          {/* Left-aligned under the filter chips, matching the top bar's width. */}
+          <div className="flex flex-col items-start px-3 empty:hidden sm:max-w-xl">
             <AnnouncementBanner
               announcements={layerData.bannerAnnouncements}
               onOpen={(announcement) => openLayerItem({ kind: "announcement", announcement })}
               onViewAll={() => openMore("announcements")}
             />
+          </div>
+          <div className="flex flex-col items-center gap-2 px-3">
             {!online && (
               <MapNotice icon={<WifiOff />} tone="warn">
                 {staleClock ? t("offlineShowingAsOf", { when: staleClock }) : t("offlineNotice")}
