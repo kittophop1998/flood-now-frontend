@@ -62,7 +62,7 @@ export function ImportantPlacePopup({
         </h2>
         <div className="flex flex-wrap items-center gap-1.5">
           <PlaceStatusBadge status={place.status} />
-          {place.origin === "community" && <UserAddedBadge mine={place.mine} />}
+          {place.origin === "community" && <UserAddedBadge />}
         </div>
         <p className="inline-flex items-center gap-1 text-xs text-muted-foreground">
           <Clock className="size-3.5" aria-hidden />

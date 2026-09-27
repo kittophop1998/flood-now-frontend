@@ -117,12 +117,12 @@ export function CommunityBadge({ className }: { className?: string }) {
 }
 
 // An important place someone added from the app (not operator-curated).
-export function UserAddedBadge({ mine, className }: { mine?: boolean; className?: string }) {
+export function UserAddedBadge({ className }: { className?: string }) {
   const { t } = useTranslation();
   return (
     <span className={cn(badgeBase, "border-slate-300 bg-background text-slate-700", className)}>
       <UserRoundPlus className="size-3.5" aria-hidden />
-      {mine ? t("ipMine") : t("ipFromUser")}
+      {t("ipFromUser")}
     </span>
   );
 }
