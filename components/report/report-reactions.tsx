@@ -1,32 +1,70 @@
 "use client";
 
-import { useState, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { Heart, HeartHandshake, Loader2 } from "lucide-react";
+import { useAuth } from "@/features/auth/auth-provider";
 import { useReportReaction } from "@/features/reports/use-report-reaction";
-import { clearMyReaction, getMyReaction, nextReaction, setMyReaction } from "@/lib/report-reactions";
+import { reportsService } from "@/services/reports-service";
+import { getAuthSession } from "@/lib/auth-session";
+import { getMyReaction, nextReaction, rememberMyReaction } from "@/lib/report-reactions";
 import { useTranslation } from "@/lib/i18n/locale-context";
 import { cn } from "@/lib/utils";
 import type { ReactionType, Report } from "@/types/report";
 
 // Lightweight social feedback on a community report — social only, never
 // severity/trust/freshness/route-safety/moderation input (docs/api-spec.md).
+// Counts are public; reacting needs an account, so a guest's tap opens the
+// sign-in sheet and the reaction is sent once they're signed in.
 // Not optimistic: mirrors the confirmation vote buttons' pending-spinner UX
 // (components/report/report-detail.tsx VoteButton) rather than faking counts,
 // since that's the pattern this app already uses for report mutations.
 export function ReportReactions({ report, onReacted }: { report: Report; onReacted: (updated: Report) => void }) {
   const { t } = useTranslation();
+  const { user, requireAuth } = useAuth();
   const { react, pendingType, error } = useReportReaction();
-  const [mine, setMine] = useState<ReactionType | null>(() => getMyReaction(report.id));
+  const userId = user?.id ?? null;
+  const [mine, setMine] = useState<ReactionType | null>(null);
   const pending = pendingType !== null;
 
-  async function tap(type: ReactionType) {
-    const next = nextReaction(mine, type);
-    const updated = await react(report.id, type, next);
-    if (!updated) return;
-    if (next) setMyReaction(report.id, next);
-    else clearMyReaction(report.id);
-    setMine(next);
-    onReacted(updated);
+  // The user's own reaction: the API's answer when this copy carries it,
+  // else the local cache, then ask the API (list copies don't carry it).
+  const known = report.my_reaction;
+  useEffect(() => {
+    if (!userId) {
+      setMine(null);
+      return;
+    }
+    if (known !== undefined) {
+      setMine(known);
+      return;
+    }
+    setMine(getMyReaction(userId, report.id));
+    let cancelled = false;
+    reportsService
+      .get(report.id)
+      .then((fresh) => {
+        if (cancelled || fresh.my_reaction === undefined) return;
+        setMine(fresh.my_reaction);
+        rememberMyReaction(userId, report.id, fresh.my_reaction);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [userId, report.id, known]);
+
+  function tap(type: ReactionType) {
+    requireAuth("react", async () => {
+      const next = nextReaction(mine, type);
+      const updated = await react(report.id, type, next);
+      if (!updated) return;
+      const confirmed = updated.my_reaction !== undefined ? updated.my_reaction : next;
+      // Read at send time: a resumed tap was made before signing in.
+      const current = getAuthSession()?.user;
+      if (current) rememberMyReaction(current.id, report.id, confirmed);
+      setMine(confirmed);
+      onReacted(updated);
+    });
   }
 
   return (

@@ -29,3 +29,12 @@ export function writeCache<T>(key: string, data: T, now: Date = new Date()): voi
     // Storage full or blocked: skip caching rather than fail the request.
   }
 }
+
+export function removeCache(key: string): void {
+  if (typeof window === "undefined") return;
+  try {
+    window.localStorage.removeItem(PREFIX + key);
+  } catch {
+    // best-effort only
+  }
+}

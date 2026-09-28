@@ -99,6 +99,10 @@ export interface Report {
   // Reaction totals — cosmetic only, see REACTION_TYPES above.
   like_count: number;
   support_count: number;
+  // The signed-in caller's own reaction (null = none). Present only where
+  // the API knows who is asking: GET /reports/:id with a session, and the
+  // react/unreact responses.
+  my_reaction?: ReactionType | null;
   // Present only on location-based responses (nearby, duplicates).
   distance_m?: number;
 }
@@ -137,8 +141,8 @@ export interface ConfirmReportInput extends ConditionUpdate {
   status: ConfirmationStatus;
 }
 
+// Reacting needs a signed-in user; the session token identifies them.
 export interface ReactionInput {
-  device_id: string;
   type: ReactionType;
 }
 

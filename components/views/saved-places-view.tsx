@@ -9,6 +9,8 @@ import { Switch } from "@/components/ui/switch";
 import { AreaLevelBadge, AreaTopLine, StaleDataNote } from "@/components/community/badges";
 import { LocationField, type LocationValue } from "@/components/community/location-field";
 import { EmptyState, ViewShell } from "@/components/views/view-shell";
+import { SignInCard } from "@/components/auth/sign-in-card";
+import { useAuth } from "@/features/auth/auth-provider";
 import { useNow } from "@/features/common/use-now";
 import type { SavedPlacesApi } from "@/features/places/use-saved-places";
 import { PLACE_ICON_META } from "@/lib/community-meta";
@@ -73,6 +75,7 @@ export function SavedPlacesView({
   onRouteTo: (place: SavedPlace) => void;
 }) {
   const { t } = useTranslation();
+  const { requireAuth } = useAuth();
   const now = useNow();
   const [draft, setDraft] = useState<Draft | null>(null);
   const [saving, setSaving] = useState(false);
@@ -235,7 +238,7 @@ export function SavedPlacesView({
           </div>
         </section>
       ) : (
-        <Button className="h-12 rounded-xl text-base" onClick={() => setDraft(draftFrom(null, t("placeIcon.home")))}>
+        <Button className="h-12 rounded-xl text-base" onClick={() => requireAuth("savePlace", () => setDraft(draftFrom(null, t("placeIcon.home"))))}>
           <Plus aria-hidden />
           {t("addPlace")}
         </Button>
@@ -254,6 +257,9 @@ export function SavedPlacesView({
             </Button>
           }
         />
+      )}
+      {places.status === "guest" && !draft && (
+        <SignInCard reason="savePlace" title={t("savedPlacesSignInTitle")} hint={t("savedPlacesSignInHint")} />
       )}
       {places.status === "ready" && places.places.length === 0 && !draft && (
         <EmptyState icon={<Bookmark />} title={t("noSavedPlaces")} hint={t("noSavedPlacesHint")} />

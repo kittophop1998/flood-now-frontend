@@ -3,7 +3,6 @@
 import { useRef, useState } from "react";
 import { reportsService } from "@/services/reports-service";
 import { ApiError } from "@/services/api-client";
-import { getDeviceId } from "@/lib/device-id";
 import { useTranslation } from "@/lib/i18n/locale-context";
 import type { ReactionType, Report } from "@/types/report";
 
@@ -18,7 +17,7 @@ export function useReportReaction() {
   // a second tap that lands before that render happens.
   const inFlight = useRef(false);
 
-  // Sends `next` as the device's reaction (null clears it). `tapped` is the
+  // Sends `next` as the signed-in user's reaction (null clears it). `tapped` is the
   // chip that triggered it. Returns the updated report, or null on failure or
   // when another request is still running.
   async function react(reportId: string, tapped: ReactionType, next: ReactionType | null): Promise<Report | null> {
@@ -27,10 +26,7 @@ export function useReportReaction() {
     setPendingType(tapped);
     setError(null);
     try {
-      const deviceId = getDeviceId();
-      return next
-        ? await reportsService.react(reportId, { device_id: deviceId, type: next })
-        : await reportsService.removeReaction(reportId, deviceId);
+      return next ? await reportsService.react(reportId, { type: next }) : await reportsService.removeReaction(reportId);
     } catch (err) {
       setError(err instanceof ApiError ? err.message : t("failedReaction"));
       return null;

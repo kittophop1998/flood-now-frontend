@@ -6,6 +6,7 @@ import {
   Ambulance,
   Anchor,
   Briefcase,
+  CalendarDays,
   Cctv,
   CircleCheck,
   CircleX,
@@ -25,6 +26,12 @@ import {
   Link2,
   MapPin,
   Megaphone,
+  Music,
+  PartyPopper,
+  ShoppingBasket,
+  Store,
+  Footprints,
+  Landmark,
   OctagonAlert,
   PersonStanding,
   Shield,
@@ -47,6 +54,7 @@ import {
   Accessibility,
   type LucideIcon,
 } from "lucide-react";
+import type { EventCategory } from "@/types/community";
 import type { Tone } from "@/lib/report-meta";
 import type {
   AnnouncementSeverity,
@@ -189,3 +197,17 @@ export const CCTV_META = {
   icon: Cctv,
   color: "#1e3a8a",
 } as const;
+
+// Community events: one fuchsia family (never a report/official color), so
+// an event never reads as an incident; the icon tells the kind.
+export const EVENT_COLOR = "#a21caf";
+export const EVENT_CATEGORY_META: Record<EventCategory, LucideIcon> = {
+  temple_fair: Landmark,
+  market: ShoppingBasket,
+  fair: Store,
+  walking_street: Footprints,
+  community: UsersRound,
+  festival: PartyPopper,
+  concert: Music,
+  other: CalendarDays,
+};

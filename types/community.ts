@@ -36,8 +36,8 @@ export interface SavedPlace {
   };
 }
 
+// Saved places belong to the signed-in user (the session token says who).
 export interface SavedPlaceInput {
-  device_id: string;
   name?: string;
   icon?: PlaceIcon;
   latitude?: number;
@@ -411,4 +411,58 @@ export interface CctvLayer {
   stale: boolean;
   has_more: boolean;
   cameras: CctvCamera[];
+}
+
+// --- Community events (docs/api-spec.md#community-events) ---
+
+export const EVENT_CATEGORIES = [
+  "temple_fair",
+  "market",
+  "fair",
+  "walking_street",
+  "community",
+  "festival",
+  "concert",
+  "other",
+] as const;
+export type EventCategory = (typeof EVENT_CATEGORIES)[number];
+
+// "ended" is derived by the API from end_at; the client re-derives it
+// between fetches (lib/events.ts), never from hardcoded durations.
+export type EventStatus = "active" | "cancelled" | "ended";
+
+export interface CommunityEvent {
+  id: string;
+  title: string;
+  description: string | null;
+  category: EventCategory;
+  latitude: number;
+  longitude: number;
+  location_name: string | null;
+  start_at: string;
+  end_at: string;
+  image_key: string | null;
+  image_url: string | null;
+  status: EventStatus;
+  // Public-safe organizer info only (no id, email or contact).
+  organizer: { display_name: string };
+  // True only for the signed-in organizer.
+  is_mine: boolean;
+  cancelled_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+// Create needs every field but description/location_name/image_key;
+// update sends any subset ("" clears optional text / the photo).
+export interface EventInput {
+  title?: string;
+  description?: string;
+  category?: EventCategory;
+  latitude?: number;
+  longitude?: number;
+  location_name?: string;
+  start_at?: string;
+  end_at?: string;
+  image_key?: string;
 }

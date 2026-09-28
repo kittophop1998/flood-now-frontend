@@ -1,44 +1,37 @@
-// Tracks which reaction (if any) this device set on a report, purely for UI
-// state (highlighting the pressed chip across visits). The API upserts one
-// reaction per device anyway (see docs/api-spec.md), so this is client-only
-// and best-effort — it's fine if it's lost. Mirrors lib/confirmed-reports.ts.
+// Remembers which reaction (if any) the signed-in user set on a report, purely
+// for UI state (highlighting the pressed chip before the API says so). The
+// API keeps one reaction per user and returns it as `my_reaction` where it
+// knows the caller (see docs/api-spec.md), so this is a best-effort cache,
+// kept per account so another person signing in on this phone never sees it.
+// Mirrors lib/confirmed-reports.ts.
 import type { ReactionType } from "@/types/report";
 
-const STORAGE_KEY = "floodnow_report_reactions";
+const STORAGE_PREFIX = "floodnow_report_reactions:";
 
 type Stored = Record<string, ReactionType>;
 
-function readMap(): Stored {
+function readMap(userId: string): Stored {
   if (typeof window === "undefined") return {};
   try {
-    const raw = window.localStorage.getItem(STORAGE_KEY);
+    const raw = window.localStorage.getItem(STORAGE_PREFIX + userId);
     return raw ? JSON.parse(raw) : {};
   } catch {
     return {};
   }
 }
 
-export function getMyReaction(reportId: string): ReactionType | null {
-  return readMap()[reportId] ?? null;
+export function getMyReaction(userId: string, reportId: string): ReactionType | null {
+  return readMap(userId)[reportId] ?? null;
 }
 
-export function setMyReaction(reportId: string, type: ReactionType) {
+// Stores (or, with null, forgets) the user's reaction to a report.
+export function rememberMyReaction(userId: string, reportId: string, type: ReactionType | null) {
   if (typeof window === "undefined") return;
   try {
-    const map = readMap();
-    map[reportId] = type;
-    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(map));
-  } catch {
-    // best-effort only
-  }
-}
-
-export function clearMyReaction(reportId: string) {
-  if (typeof window === "undefined") return;
-  try {
-    const map = readMap();
-    delete map[reportId];
-    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(map));
+    const map = readMap(userId);
+    if (type) map[reportId] = type;
+    else delete map[reportId];
+    window.localStorage.setItem(STORAGE_PREFIX + userId, JSON.stringify(map));
   } catch {
     // best-effort only
   }

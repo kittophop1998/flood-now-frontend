@@ -1,7 +1,7 @@
 "use client";
 
 import type { ReactNode } from "react";
-import { Clock, ExternalLink, MapPin, Navigation, Phone, WifiOff } from "lucide-react";
+import { Clock, ExternalLink, MapPin, Navigation, Pencil, Phone, WifiOff } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { DetailLinkButton, DetailList, DetailPopup, DetailRow } from "@/components/ui/detail-popup";
 import { AnnouncementSeverityBadge, AnnouncementTypeIcon, OfficialBadge, PlaceStatusBadge, UserAddedBadge } from "@/components/community/badges";
@@ -12,13 +12,15 @@ import { useNow } from "@/features/common/use-now";
 import { useOnlineStatus } from "@/features/common/use-online-status";
 import { useCctvNear } from "@/features/layers/use-doh-cctv";
 import { cctvRoadLabel, cctvTitle, floodAreaBBox } from "@/lib/cctv";
-import { IMPORTANT_PLACE_META } from "@/lib/community-meta";
+import { EVENT_CATEGORY_META, EVENT_COLOR, IMPORTANT_PLACE_META } from "@/lib/community-meta";
+import { eventStatus, isHappeningNow } from "@/lib/events";
+import { imageKitUrl } from "@/lib/imagekit";
 import { directionsUrl } from "@/lib/directions";
 import { formatDistance } from "@/lib/distance";
 import { formatClockTime, formatFreshness } from "@/lib/freshness";
 import { useTranslation } from "@/lib/i18n/locale-context";
 import type { BoundingBox } from "@/types/report";
-import type { Announcement, CctvCamera, CctvLayer, FloodAreaProperties, FloodLayer, ImportantPlace, LatLng } from "@/types/community";
+import type { Announcement, CctvCamera, CctvLayer, CommunityEvent, FloodAreaProperties, FloodLayer, ImportantPlace, LatLng } from "@/types/community";
 
 function DirectionsLink({ latitude, longitude, className }: { latitude: number; longitude: number; className?: string }) {
   const { t } = useTranslation();
@@ -408,4 +410,93 @@ export function NearbyCctv({
       <p className="text-[11px] text-muted-foreground">{t("cctvSourceLine")}</p>
     </section>
   );
+}
+
+// Detail popup for a community event (fair, market…). Public content with
+// only public-safe organizer info (display name); no community-report
+// actions. The organizer gets edit / cancel.
+export function EventPopup({
+  event: ev,
+  onClose,
+  onEdit,
+  onVisibleHeightChange,
+}: {
+  event: CommunityEvent;
+  onClose: () => void;
+  // Organizer only: open the event in the events screen for editing.
+  onEdit?: (event: CommunityEvent) => void;
+  onVisibleHeightChange?: (px: number) => void;
+}) {
+  const { t, locale } = useTranslation();
+  const now = useNow();
+  const headingId = `event-${ev.id}-title`;
+  const Icon = EVENT_CATEGORY_META[ev.category] ?? EVENT_CATEGORY_META.other;
+  const status = eventStatus(ev, now);
+  const imageUrl = ev.image_url ?? imageKitUrl(ev.image_key);
+
+  const header = (
+    <div className="flex items-start gap-3">
+      <span className="flex size-12 shrink-0 items-center justify-center rounded-2xl text-white shadow-sm" style={{ backgroundColor: EVENT_COLOR }}>
+        <Icon className="size-6" aria-hidden />
+      </span>
+      <div className="flex min-w-0 flex-1 flex-col gap-1.5">
+        <div className="flex flex-wrap items-center gap-1.5">
+          <EventStatusBadge event={ev} now={now} />
+          <span className="text-xs font-semibold text-fuchsia-800">{t(`eventCategory.${ev.category}`)}</span>
+        </div>
+        <h2 id={headingId} tabIndex={-1} className="text-lg leading-snug font-semibold outline-none sm:text-xl">
+          {ev.title}
+        </h2>
+        <p className="inline-flex items-center gap-1 text-xs text-muted-foreground">
+          <Clock className="size-3.5" aria-hidden />
+          {formatClockTime(ev.start_at, locale, now)} – {formatClockTime(ev.end_at, locale, now)}
+        </p>
+      </div>
+    </div>
+  );
+
+  const footer = (
+    <div className="flex gap-2 sm:justify-end">
+      {ev.is_mine && onEdit && status === "active" && (
+        <Button variant="outline" className="h-11 flex-1 rounded-xl sm:flex-none" onClick={() => onEdit(ev)}>
+          <Pencil aria-hidden />
+          {t("eventManage")}
+        </Button>
+      )}
+      <DirectionsLink latitude={ev.latitude} longitude={ev.longitude} className="flex-1 sm:flex-none sm:px-5" />
+    </div>
+  );
+
+  return (
+    <DetailPopup labelledBy={headingId} onClose={onClose} header={header} footer={footer} accent={EVENT_COLOR} onVisibleHeightChange={onVisibleHeightChange}>
+      {imageUrl && (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img src={imageUrl} alt="" loading="lazy" className="max-h-64 w-full rounded-xl bg-muted object-cover" />
+      )}
+      {ev.description && <p className="text-[15px] leading-relaxed break-words whitespace-pre-line">{ev.description}</p>}
+      <DetailList>
+        <DetailRow label={t("eventStarts")}>{formatClockTime(ev.start_at, locale, now)}</DetailRow>
+        <DetailRow label={t("eventEnds")}>{formatClockTime(ev.end_at, locale, now)}</DetailRow>
+        {ev.location_name && <DetailRow label={t("eventLocation")}>{ev.location_name}</DetailRow>}
+        <DetailRow label={t("eventOrganizer")}>{ev.organizer.display_name}</DetailRow>
+      </DetailList>
+      <p className="text-xs text-muted-foreground">{t("eventDisclaimer")}</p>
+    </DetailPopup>
+  );
+}
+
+export function EventStatusBadge({ event, now }: { event: CommunityEvent; now: Date }) {
+  const { t } = useTranslation();
+  const status = eventStatus(event, now);
+  const live = isHappeningNow(event, now);
+  const tone =
+    status === "cancelled"
+      ? "border-red-200 bg-red-50 text-red-800"
+      : status === "ended"
+        ? "border-slate-200 bg-slate-50 text-slate-700"
+        : live
+          ? "border-fuchsia-200 bg-fuchsia-50 text-fuchsia-800"
+          : "border-sky-200 bg-sky-50 text-sky-800";
+  const label = status === "cancelled" ? t("eventStatusCancelled") : status === "ended" ? t("eventStatusEnded") : live ? t("eventStatusNow") : t("eventStatusUpcoming");
+  return <span className={`inline-flex h-6 items-center rounded-full border px-2 text-xs font-semibold ${tone}`}>{label}</span>;
 }

@@ -3,6 +3,7 @@ import { Geist, Geist_Mono, IBM_Plex_Sans_Thai } from "next/font/google";
 import { Toaster } from "@/components/ui/sonner";
 import { ServiceWorkerRegistration } from "@/components/service-worker";
 import { LocaleProvider } from "@/lib/i18n/locale-context";
+import { AuthProvider } from "@/features/auth/auth-provider";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -50,9 +51,11 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
     >
       <body className="h-full overscroll-none bg-background">
         <LocaleProvider>
-          {children}
-          <Toaster position="top-center" offset={{ top: "calc(env(safe-area-inset-top) + 12px)" }} />
-          <ServiceWorkerRegistration />
+          <AuthProvider>
+            {children}
+            <Toaster position="top-center" offset={{ top: "calc(env(safe-area-inset-top) + 12px)" }} />
+            <ServiceWorkerRegistration />
+          </AuthProvider>
         </LocaleProvider>
       </body>
     </html>

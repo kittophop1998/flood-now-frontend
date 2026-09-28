@@ -15,6 +15,7 @@ import { CAPABILITY_META, SOS_TYPE_META } from "@/lib/community-meta";
 import { directionsUrl } from "@/lib/directions";
 import { formatDistance } from "@/lib/distance";
 import { formatFreshness } from "@/lib/freshness";
+import { useAuth } from "@/features/auth/auth-provider";
 import { useTranslation } from "@/lib/i18n/locale-context";
 import { cn } from "@/lib/utils";
 import { CAPABILITIES, HELPER_RADII_M, type Capability, type HelperProfile, type LatLng, type SosRequest, type SosStatus } from "@/types/community";
@@ -95,6 +96,8 @@ export function HelperView({
 
 function HelperProfileForm({ helper, userLocation }: { helper: ReturnType<typeof useHelper>; userLocation: LatLng | null }) {
   const { t } = useTranslation();
+  // Going on duty (saving the profile) needs an account.
+  const { requireAuth } = useAuth();
   const p: HelperProfile | null = helper.profile;
   const [active, setActive] = useState(p?.active ?? false);
   const [caps, setCaps] = useState<Capability[]>(p?.capabilities ?? []);
@@ -209,7 +212,7 @@ function HelperProfileForm({ helper, userLocation }: { helper: ReturnType<typeof
           {t("helperSaved")}
         </p>
       )}
-      <Button className="h-12 rounded-xl text-base" onClick={save} disabled={helper.saving}>
+      <Button className="h-12 rounded-xl text-base" onClick={() => requireAuth("helper", save)} disabled={helper.saving}>
         {helper.saving && <Loader2 className="animate-spin" aria-hidden />}
         {t("helperSave")}
       </Button>
@@ -219,6 +222,8 @@ function HelperProfileForm({ helper, userLocation }: { helper: ReturnType<typeof
 
 function NearbyList({ helper, sos }: { helper: ReturnType<typeof useHelper>; sos: SosApi }) {
   const { t } = useTranslation();
+  // Accepting a request needs an account.
+  const { requireAuth } = useAuth();
   const now = useNow();
   const [accepting, setAccepting] = useState<string | null>(null);
 
@@ -266,12 +271,14 @@ function NearbyList({ helper, sos }: { helper: ReturnType<typeof useHelper>; sos
             <Button
               className="h-12 rounded-xl text-base"
               disabled={accepting !== null}
-              onClick={async () => {
-                setAccepting(s.id);
-                const ok = await sos.accept(s.id);
-                setAccepting(null);
-                if (!ok) helper.reloadNearby();
-              }}
+              onClick={() =>
+                requireAuth("helper", async () => {
+                  setAccepting(s.id);
+                  const ok = await sos.accept(s.id);
+                  setAccepting(null);
+                  if (!ok) helper.reloadNearby();
+                })
+              }
             >
               {accepting === s.id ? <Loader2 className="animate-spin" aria-hidden /> : <Handshake aria-hidden />}
               {t("helperAccept")}

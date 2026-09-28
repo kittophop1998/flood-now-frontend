@@ -61,12 +61,12 @@ export const reportsService = {
   confirm: (id: string, input: ConfirmReportInput) =>
     apiClient.post<Report>(`/api/v1/reports/${id}/confirmations`, input),
 
-  // Sets (or switches) the device's like/support reaction. Social feedback
-  // only — never severity, trust, freshness, route safety or moderation.
+  // Sets (or switches) the signed-in user's like/support reaction. Social
+  // feedback only — never severity, trust, freshness, route safety or
+  // moderation. Needs a session (401 for guests).
   react: (id: string, input: ReactionInput) => apiClient.post<Report>(`/api/v1/reports/${id}/reactions`, input),
 
-  removeReaction: (id: string, deviceId: string) =>
-    apiClient.delete<Report>(`/api/v1/reports/${id}/reactions${toQuery({ device_id: deviceId })}`),
+  removeReaction: (id: string) => apiClient.delete<Report>(`/api/v1/reports/${id}/reactions`),
 
   // "Report a problem" with an incident (moderation).
   reportProblem: (id: string, input: ProblemReportInput) =>

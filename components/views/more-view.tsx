@@ -2,7 +2,10 @@
 
 import {
   Bookmark,
+  CalendarDays,
   ChevronRight,
+  CircleUserRound,
+  LogOut,
   CloudUpload,
   Handshake,
   Heart,
@@ -17,6 +20,8 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { LocaleToggle } from "@/components/locale-toggle";
+import { Button } from "@/components/ui/button";
+import { useAuth } from "@/features/auth/auth-provider";
 import { CategoryIcon, SeverityBadge, StatusBadge } from "@/components/report/report-badges";
 import { ViewShell } from "@/components/views/view-shell";
 import { categoryLabel } from "@/lib/report-meta";
@@ -25,12 +30,13 @@ import type { TranslationKey } from "@/lib/i18n/locale";
 import { cn } from "@/lib/utils";
 import { REPORT_STATUSES, REPORT_TYPES, SEVERITIES } from "@/types/report";
 
-export type MoreScreen = "menu" | "saved" | "watch" | "route" | "sos" | "helper" | "places" | "announcements" | "donate" | "sync";
+export type MoreScreen = "menu" | "saved" | "watch" | "route" | "sos" | "helper" | "places" | "announcements" | "events" | "donate" | "sync";
 
 const MENU: { id: Exclude<MoreScreen, "menu" | "sos" | "donate" | "sync">; icon: LucideIcon; label: TranslationKey; hint: TranslationKey }[] = [
   { id: "saved", icon: Bookmark, label: "savedPlacesTitle", hint: "savedPlacesHint" },
   { id: "watch", icon: Radar, label: "watchTitle", hint: "watchHint" },
   { id: "route", icon: Route, label: "routeTitle", hint: "routeHint" },
+  { id: "events", icon: CalendarDays, label: "eventsTitle", hint: "eventsHint" },
   { id: "helper", icon: Handshake, label: "helperTitle", hint: "helperHint" },
   { id: "places", icon: Hospital, label: "importantPlacesTitle", hint: "importantPlacesHint" },
   { id: "announcements", icon: Megaphone, label: "announcementsTitle", hint: "announcementsHint" },
@@ -50,8 +56,37 @@ export function MoreView({
   hidden?: boolean;
 }) {
   const { t } = useTranslation();
+  const { user, openSignIn, signOut } = useAuth();
   return (
     <ViewShell title={t("moreTitle")} subtitle={t("appTagline")} hidden={hidden}>
+      <section aria-label={t("accountTitle")} className="flex items-center gap-3 rounded-2xl border bg-card p-4 shadow-xs">
+        <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-accent text-primary">
+          <CircleUserRound className="size-5" aria-hidden />
+        </span>
+        {user ? (
+          <>
+            <span className="min-w-0 flex-1">
+              <span className="block truncate font-medium">{user.display_name}</span>
+              <span className="block truncate text-sm text-muted-foreground">{user.email}</span>
+            </span>
+            <Button variant="outline" className="h-11 shrink-0 rounded-xl" onClick={signOut}>
+              <LogOut aria-hidden />
+              {t("authSignOut")}
+            </Button>
+          </>
+        ) : (
+          <>
+            <span className="min-w-0 flex-1">
+              <span className="block font-medium">{t("authGuestTitle")}</span>
+              <span className="block text-sm text-muted-foreground">{t("authGuestHint")}</span>
+            </span>
+            <Button className="h-11 shrink-0 rounded-xl" onClick={() => openSignIn("login")}>
+              {t("authLogin")}
+            </Button>
+          </>
+        )}
+      </section>
+
       <button
         type="button"
         onClick={() => onOpen("sos")}

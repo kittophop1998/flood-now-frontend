@@ -1,7 +1,7 @@
 "use client";
 
 import type { ReactNode } from "react";
-import { Loader2, MapPin, UsersRound } from "lucide-react";
+import { Bookmark, CalendarDays, Loader2, MapPin, UsersRound } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
@@ -78,6 +78,7 @@ export function LayersSheet({
   onChange,
   gistda,
   cctv,
+  signedIn,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -85,6 +86,8 @@ export function LayersSheet({
   onChange: (next: LayerFilters) => void;
   gistda: GistdaLayerState;
   cctv: CctvLayerState;
+  // Signed in: offer the user's own saved places layer.
+  signedIn: boolean;
 }) {
   const { t } = useTranslation();
   return (
@@ -111,7 +114,41 @@ export function LayersSheet({
                 onCheckedChange={(v) => onChange({ ...layers, reports: v })}
               />
             </div>
+            <div className="rounded-2xl border px-3">
+              <LayerRow
+                id="sheet-layer-events"
+                icon={
+                  <RowIcon className="bg-fuchsia-50 text-fuchsia-700">
+                    <CalendarDays />
+                  </RowIcon>
+                }
+                label={t("layerEventsToggle")}
+                checked={layers.events}
+                onCheckedChange={(v) => onChange({ ...layers, events: v })}
+              />
+            </div>
           </section>
+
+          {signedIn && (
+            <section className="flex flex-col gap-1.5" aria-labelledby="layer-sec-mine">
+              <h3 id="layer-sec-mine" className="text-xs font-semibold tracking-wide text-muted-foreground">
+                {t("layerSectionMine")}
+              </h3>
+              <div className="rounded-2xl border px-3">
+                <LayerRow
+                  id="sheet-layer-saved"
+                  icon={
+                    <RowIcon className="bg-accent text-primary">
+                      <Bookmark />
+                    </RowIcon>
+                  }
+                  label={t("layerSavedPlacesToggle")}
+                  checked={layers.savedPlaces}
+                  onCheckedChange={(v) => onChange({ ...layers, savedPlaces: v })}
+                />
+              </div>
+            </section>
+          )}
 
           <section className="flex flex-col gap-1.5" aria-labelledby="layer-sec-official">
             <h3 id="layer-sec-official" className="text-xs font-semibold tracking-wide text-muted-foreground">

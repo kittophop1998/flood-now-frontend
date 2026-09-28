@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { AreaLevelBadge, AreaTopLine, StaleDataNote } from "@/components/community/badges";
 import { ReportCard } from "@/components/report/report-card";
+import { SignInCard } from "@/components/auth/sign-in-card";
 import { EmptyState, ViewShell } from "@/components/views/view-shell";
 import { useNow } from "@/features/common/use-now";
 import { useNearbyReports } from "@/features/reports/use-location-lookups";
@@ -58,6 +59,7 @@ export function WatchView({
           }
         />
       )}
+      {places.status === "guest" && <SignInCard reason="savePlace" title={t("savedPlacesSignInTitle")} hint={t("watchSignInHint")} />}
       {places.status === "ready" && places.places.length === 0 && (
         <EmptyState
           icon={<Radar />}

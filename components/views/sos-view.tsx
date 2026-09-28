@@ -14,6 +14,7 @@ import { useNow } from "@/features/common/use-now";
 import type { SosApi } from "@/features/sos/use-sos";
 import { SOS_PROGRESS, SOS_TYPE_META } from "@/lib/community-meta";
 import { formatClockTime, formatFreshness } from "@/lib/freshness";
+import { useAuth } from "@/features/auth/auth-provider";
 import { useTranslation } from "@/lib/i18n/locale-context";
 import { cn } from "@/lib/utils";
 import { SOS_TYPES, type LatLng, type SosRequest, type SosType } from "@/types/community";
@@ -106,6 +107,7 @@ function SosForm({
   onPick: PickFn;
 }) {
   const { t } = useTranslation();
+  const { user, requireAuth } = useAuth();
   const [type, setType] = useState<SosType | null>(null);
   const [people, setPeople] = useState(1);
   const [description, setDescription] = useState("");
@@ -147,6 +149,12 @@ function SosForm({
         <p role="alert" className="flex items-start gap-2 rounded-xl border-2 border-red-600 bg-red-50 p-3 text-sm font-semibold text-red-900">
           <WifiOff className="mt-0.5 size-5 shrink-0" aria-hidden />
           {t("sosOfflineWarning")}
+        </p>
+      )}
+      {!user && (
+        <p className="flex items-start gap-2 rounded-xl border border-amber-300 bg-amber-50 p-3 text-sm text-amber-950">
+          <Lock className="mt-0.5 size-4 shrink-0" aria-hidden />
+          {t("sosSignInNote")}
         </p>
       )}
 
@@ -252,7 +260,7 @@ function SosForm({
         </p>
       )}
 
-      <Button className="h-14 rounded-xl bg-red-600 text-base font-bold text-white hover:bg-red-700" onClick={review} disabled={sending || !online}>
+      <Button className="h-14 rounded-xl bg-red-600 text-base font-bold text-white hover:bg-red-700" onClick={() => requireAuth("sos", review)} disabled={sending || !online}>
         {sending ? <Loader2 className="animate-spin" aria-hidden /> : <Siren aria-hidden />}
         {sending ? t("sosSending") : t("sosSend")}
       </Button>

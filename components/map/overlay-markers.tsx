@@ -1,10 +1,10 @@
 "use client";
 
 import { memo } from "react";
-import { CCTV_META, IMPORTANT_PLACE_META, OFFICIAL_ICON } from "@/lib/community-meta";
+import { CCTV_META, EVENT_CATEGORY_META, EVENT_COLOR, IMPORTANT_PLACE_META, OFFICIAL_ICON, PLACE_ICON_META } from "@/lib/community-meta";
 import { AnnouncementTypeIcon } from "@/components/community/badges";
 import { cn } from "@/lib/utils";
-import type { Announcement, ImportantPlace } from "@/types/community";
+import type { Announcement, CommunityEvent, ImportantPlace, SavedPlace } from "@/types/community";
 
 // Important places are rounded squares (reports are circles) so the two
 // layers never read as the same thing.
@@ -97,6 +97,49 @@ export const CctvClusterMarker = memo(function CctvClusterMarker({ count, label 
       >
         <Icon className="size-4" strokeWidth={2.25} aria-hidden />
         {count}
+      </span>
+    </button>
+  );
+});
+
+// Community event: a fuchsia diamond — neither a report circle, a place
+// square nor an official indigo pin, so an event never reads as an incident.
+// Cancelled events stay (until their end) but greyed out.
+export const EventMarker = memo(function EventMarker({
+  event,
+  label,
+  selected,
+}: {
+  event: CommunityEvent;
+  label: string;
+  selected: boolean;
+}) {
+  const Icon = EVENT_CATEGORY_META[event.category] ?? EVENT_CATEGORY_META.other;
+  return (
+    <button type="button" aria-label={label} aria-pressed={selected} className="group flex size-11 items-center justify-center outline-none">
+      <span
+        className={cn(
+          "flex size-7 rotate-45 items-center justify-center rounded-md border-2 border-white shadow-md transition-transform group-focus-visible:ring-4 group-focus-visible:ring-ring",
+          selected && "size-8 scale-110 ring-4 ring-fuchsia-300",
+          event.status === "cancelled" && "opacity-60 grayscale",
+        )}
+        style={{ backgroundColor: EVENT_COLOR }}
+      >
+        <Icon className="size-4 -rotate-45 text-white" aria-hidden />
+      </span>
+    </button>
+  );
+});
+
+// The signed-in user's own saved place: a white chip with its icon and the
+// name they gave it — private to them, clearly not a public pin.
+export const SavedPlaceMarker = memo(function SavedPlaceMarker({ place, label }: { place: SavedPlace; label: string }) {
+  const Icon = PLACE_ICON_META[place.icon] ?? PLACE_ICON_META.custom;
+  return (
+    <button type="button" aria-label={label} className="group flex h-11 items-center justify-center outline-none">
+      <span className="flex h-7 max-w-36 items-center gap-1 rounded-full border-2 border-primary bg-white pr-2 pl-1.5 text-xs font-semibold text-primary shadow-md group-focus-visible:ring-4 group-focus-visible:ring-ring">
+        <Icon className="size-3.5 shrink-0" aria-hidden />
+        <span className="truncate">{place.name}</span>
       </span>
     </button>
   );

@@ -57,21 +57,25 @@ export interface CategoryMeta {
   // A place people go to (shelter, aid point) rather than something
   // happening; never counted as a nearby "incident".
   facility?: boolean;
+  // A safety-critical hazard someone who isn't signed in may report.
+  // Mirrors guestReportable in apps/api/internal/domain/report/report.go
+  // (the server enforces it); read through lib/auth-gate.ts.
+  guestReportable?: boolean;
 }
 
 const ROAD: CategoryFields = { waterDepth: false, passability: true, helpDetails: false };
 const PLAIN: CategoryFields = { waterDepth: false, passability: false, helpDetails: false };
 
 export const CATEGORY_META: Record<ReportType, CategoryMeta> = {
-  flooded: { icon: Waves, color: "#0369a1", fields: { ...ROAD, waterDepth: true } },
-  road_closed: { icon: Ban, color: "#be123c", fields: ROAD },
-  accident: { icon: TriangleAlert, color: "#c2410c", fields: ROAD },
+  flooded: { icon: Waves, color: "#0369a1", fields: { ...ROAD, waterDepth: true }, guestReportable: true },
+  road_closed: { icon: Ban, color: "#be123c", fields: ROAD, guestReportable: true },
+  accident: { icon: TriangleAlert, color: "#c2410c", fields: ROAD, guestReportable: true },
   vehicle_stalled: { icon: CarFront, color: "#475569", fields: ROAD },
-  obstruction: { icon: Construction, color: "#a16207", fields: ROAD },
-  road_damage: { icon: Road, color: "#78350f", fields: ROAD },
+  obstruction: { icon: Construction, color: "#a16207", fields: ROAD, guestReportable: true },
+  road_damage: { icon: Road, color: "#78350f", fields: ROAD, guestReportable: true },
   construction: { icon: TrafficCone, color: "#ea580c", fields: ROAD },
-  traffic_signal_issue: { icon: LightbulbOff, color: "#0e7490", fields: PLAIN },
-  power_outage: { icon: ZapOff, color: "#6d28d9", fields: PLAIN },
+  traffic_signal_issue: { icon: LightbulbOff, color: "#0e7490", fields: PLAIN, guestReportable: true },
+  power_outage: { icon: ZapOff, color: "#6d28d9", fields: PLAIN, guestReportable: true },
   help_needed: { icon: Siren, color: "#dc2626", fields: { ...PLAIN, helpDetails: true } },
   shelter: { icon: House, color: "#0f766e", fields: PLAIN, facility: true },
   aid_point: { icon: HandHeart, color: "#15803d", fields: PLAIN, facility: true },

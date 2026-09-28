@@ -5,7 +5,7 @@ import Map, { AttributionControl, Layer, Marker, NavigationControl, Source, type
 import { setWorkerUrl } from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
 import { ReportMarker } from "@/components/map/report-marker";
-import { AnnouncementMarker, CctvClusterMarker, CctvMarker, ImportantPlaceMarker } from "@/components/map/overlay-markers";
+import { AnnouncementMarker, CctvClusterMarker, CctvMarker, EventMarker, ImportantPlaceMarker, SavedPlaceMarker } from "@/components/map/overlay-markers";
 import { LocationDot } from "@/components/map/location-dot";
 import { CenterPin } from "@/components/map/center-pin";
 import { clusterPoints, CLUSTER_MAX_ZOOM } from "@/lib/cluster";
@@ -18,7 +18,7 @@ import { useNow } from "@/features/common/use-now";
 import { useTranslation } from "@/lib/i18n/locale-context";
 import type { Viewport } from "@/features/reports/use-viewport-reports";
 import type { Report } from "@/types/report";
-import type { Announcement, CctvCamera, EvaluatedRoute, FloodAreaCollection, ImportantPlace } from "@/types/community";
+import type { Announcement, CctvCamera, CommunityEvent, EvaluatedRoute, FloodAreaCollection, ImportantPlace, SavedPlace } from "@/types/community";
 
 const OPENFREEMAP_STYLE = "https://tiles.openfreemap.org/styles/liberty";
 
@@ -49,6 +49,7 @@ export type LayerSelection =
   | { kind: "announcement"; id: string }
   | { kind: "flood"; ref: number }
   | { kind: "cctv"; id: string }
+  | { kind: "event"; id: string }
   | null;
 
 const FLOOD_FILL_LAYER = "gistda-flood-fill";
@@ -75,10 +76,16 @@ export interface MapViewProps {
   floodAreas: FloodAreaCollection | null;
   // Official DOH cameras (empty when the layer is off).
   cameras: CctvCamera[];
+  // Community events (public) and the signed-in user's own saved places
+  // (private; empty for guests) — two separate groups from reports.
+  events: CommunityEvent[];
+  savedPlaces: SavedPlace[];
   selectedLayer: LayerSelection;
   onSelectPlace: (place: ImportantPlace) => void;
   onSelectCamera: (camera: CctvCamera) => void;
   onSelectAnnouncement: (a: Announcement) => void;
+  onSelectEvent: (event: CommunityEvent) => void;
+  onSelectSavedPlace: (place: SavedPlace) => void;
   route: RouteOverlay | null;
 }
 
@@ -101,10 +108,14 @@ export const MapView = memo(function MapView({
   announcements,
   floodAreas,
   cameras,
+  events,
+  savedPlaces,
   selectedLayer,
   onSelectPlace,
   onSelectCamera,
   onSelectAnnouncement,
+  onSelectEvent,
+  onSelectSavedPlace,
   route,
 }: MapViewProps) {
   const { t } = useTranslation();
@@ -359,6 +370,44 @@ export const MapView = memo(function MapView({
                 place={p}
                 selected={selectedLayer?.kind === "place" && selectedLayer.id === p.id}
                 label={t("placeAriaLabel", { name: p.name, category: t(`ipCategory.${p.category}`) })}
+              />
+            </Marker>
+          ))}
+
+        {!pickMode &&
+          savedPlaces.map((p) => (
+            <Marker
+              key={`sp:${p.id}`}
+              latitude={p.latitude}
+              longitude={p.longitude}
+              anchor="center"
+              style={{ zIndex: 1 }}
+              onClick={(e) => {
+                e.originalEvent.stopPropagation();
+                onSelectSavedPlace(p);
+              }}
+            >
+              <SavedPlaceMarker place={p} label={t("savedPlaceAriaLabel", { name: p.name })} />
+            </Marker>
+          ))}
+
+        {!pickMode &&
+          events.map((ev) => (
+            <Marker
+              key={`ev:${ev.id}`}
+              latitude={ev.latitude}
+              longitude={ev.longitude}
+              anchor="center"
+              style={{ zIndex: 2 }}
+              onClick={(e) => {
+                e.originalEvent.stopPropagation();
+                onSelectEvent(ev);
+              }}
+            >
+              <EventMarker
+                event={ev}
+                selected={selectedLayer?.kind === "event" && selectedLayer.id === ev.id}
+                label={t("eventAriaLabel", { title: ev.title })}
               />
             </Marker>
           ))}

@@ -17,7 +17,7 @@ import { RouteSummary } from "@/components/map/route-summary";
 import { SituationIntro, SituationSheet } from "@/components/map/situation-sheet";
 import { ReportForm, type ReportDraft } from "@/components/report/report-form";
 import { ReportDetailPopup } from "@/components/report/report-detail";
-import { AnnouncementPopup, CctvPopup, GistdaFloodPopup, ImportantPlacePopup } from "@/components/layers/layer-detail";
+import { AnnouncementPopup, CctvPopup, EventPopup, GistdaFloodPopup, ImportantPlacePopup } from "@/components/layers/layer-detail";
 import { OfficialFloodLegend } from "@/components/map/official-flood-legend";
 import { CctvLegend } from "@/components/map/cctv-legend";
 import { NearbyView } from "@/components/views/nearby-view";
@@ -31,6 +31,7 @@ import { HelperView } from "@/components/views/helper-view";
 import { ImportantPlacesView } from "@/components/views/important-places-view";
 import { AnnouncementsView } from "@/components/views/announcements-view";
 import { DonateView } from "@/components/views/donate-view";
+import { EventsView } from "@/components/views/events-view";
 import { SyncView } from "@/components/views/sync-view";
 import type { MapFocus, RouteOverlay } from "@/components/map/map-view";
 import { useViewportReports, type Viewport } from "@/features/reports/use-viewport-reports";
@@ -39,6 +40,7 @@ import { useNearbyReports } from "@/features/reports/use-location-lookups";
 import { useConfirmReport } from "@/features/reports/use-confirm-report";
 import { useGeolocation, DEFAULT_CENTER } from "@/features/reports/use-geolocation";
 import { useAlerts } from "@/features/alerts/use-alerts";
+import { useAuth } from "@/features/auth/auth-provider";
 import { useOnlineStatus } from "@/features/common/use-online-status";
 import { useMediaQuery } from "@/features/common/use-media-query";
 import { useNow } from "@/features/common/use-now";
@@ -59,7 +61,7 @@ import { DEFAULT_FILTERS, applyClientFilters, type MapFilters } from "@/lib/map-
 import { SITUATION_RADIUS_M, summarizeSituation } from "@/lib/situation";
 import { useTranslation } from "@/lib/i18n/locale-context";
 import type { BoundingBox, CreateReportInput, Place, Report } from "@/types/report";
-import type { Announcement, CctvCamera, FloodAreaProperties, ImportantPlace, LatLng, RouteEvaluation, SavedPlace } from "@/types/community";
+import type { Announcement, CctvCamera, CommunityEvent, FloodAreaProperties, ImportantPlace, LatLng, RouteEvaluation, SavedPlace } from "@/types/community";
 
 const MapView = dynamic(() => import("@/components/map/map-view").then((m) => m.MapView), {
   ssr: false,
@@ -78,6 +80,7 @@ type LayerSelection =
   | { kind: "place"; place: ImportantPlace }
   | { kind: "announcement"; announcement: Announcement }
   | { kind: "cctv"; camera: CctvCamera }
+  | { kind: "event"; event: CommunityEvent }
   // A GISTDA flood area, tied to the snapshot it was tapped in.
   | { kind: "flood"; area: FloodAreaProperties; fetchedAt: string }
   | null;
@@ -134,6 +137,9 @@ export default function HomePage() {
   const { confirm } = useConfirmReport();
   const config = usePublicConfig();
   const savedPlaces = useSavedPlaces();
+  const { user } = useAuth();
+  // An event opened for editing from its detail popup (organizer only).
+  const [eventEdit, setEventEdit] = useState<CommunityEvent | null>(null);
   const [tab, setTab] = useState<AppTab>("map");
   const [moreScreen, setMoreScreen] = useState<MoreScreen>("menu");
   const sos = useSos(tab === "more" && (moreScreen === "sos" || moreScreen === "helper"));
@@ -400,7 +406,14 @@ export default function HomePage() {
     closeReport();
     setTab("map");
     setLayerSelection(selection);
-    const point = selection.kind === "place" ? selection.place : selection.kind === "cctv" ? selection.camera : selection.announcement;
+    const point =
+      selection.kind === "place"
+        ? selection.place
+        : selection.kind === "cctv"
+          ? selection.camera
+          : selection.kind === "event"
+            ? selection.event
+            : selection.announcement;
     if (point.latitude != null && point.longitude != null) setFocus({ latitude: point.latitude, longitude: point.longitude, zoom: 15 });
   }
 
@@ -460,7 +473,8 @@ export default function HomePage() {
   const introVisible = bottomFree && showIntro;
   const situationVisible = bottomFree && !showIntro && situationOrigin != null;
   const filtersActive = JSON.stringify(filters) !== JSON.stringify(DEFAULT_FILTERS);
-  const layersActive = (layers.places ? 1 : 0) + (layers.announcements ? 1 : 0) + (gistdaOn ? 1 : 0) + (cctvOn ? 1 : 0);
+  const layersActive =
+    (layers.places ? 1 : 0) + (layers.announcements ? 1 : 0) + (layers.events ? 1 : 0) + (gistdaOn ? 1 : 0) + (cctvOn ? 1 : 0);
   const cctvSelection = layerSelection?.kind === "cctv" ? layerSelection.camera : null;
   const outboxCount = outbox.pendingCount + outbox.failedCount;
   // On desktop the sheet floats at the side, so it doesn't cover the map bottom.
@@ -541,6 +555,8 @@ export default function HomePage() {
           announcements={layerData.announcements}
           floodAreas={gistdaOn ? (gistda.layer?.areas ?? EMPTY_FLOOD_AREAS) : null}
           cameras={cctvOn ? withSelectedCamera(cctv.cameras, cctvSelection) : []}
+          events={layerData.events}
+          savedPlaces={user && layers.savedPlaces ? savedPlaces.places : []}
           selectedLayer={
             layerSelection?.kind === "place"
               ? { kind: "place", id: layerSelection.place.id }
@@ -548,13 +564,17 @@ export default function HomePage() {
                 ? { kind: "announcement", id: layerSelection.announcement.id }
                 : layerSelection?.kind === "cctv"
                   ? { kind: "cctv", id: layerSelection.camera.id }
-                  : floodSelection
+                  : layerSelection?.kind === "event"
+                    ? { kind: "event", id: layerSelection.event.id }
+                    : floodSelection
                     ? { kind: "flood", ref: floodSelection.area.ref }
                     : null
           }
           onSelectCamera={(camera) => openLayerItem({ kind: "cctv", camera })}
           onSelectPlace={(place) => openLayerItem({ kind: "place", place })}
           onSelectAnnouncement={(announcement) => openLayerItem({ kind: "announcement", announcement })}
+          onSelectEvent={(event) => openLayerItem({ kind: "event", event })}
+          onSelectSavedPlace={showSavedPlace}
           route={routeOverlay}
         />
 
@@ -711,6 +731,19 @@ export default function HomePage() {
           key={layerSelection.announcement.id}
           announcement={layerSelection.announcement}
           onClose={() => setLayerSelection(null)}
+          onVisibleHeightChange={setSheetHeight}
+        />
+      )}
+      {layerSheetOpen && layerSelection.kind === "event" && (
+        <EventPopup
+          key={layerSelection.event.id}
+          event={layerSelection.event}
+          onClose={() => setLayerSelection(null)}
+          onEdit={(ev) => {
+            setLayerSelection(null);
+            setEventEdit(ev);
+            openMore("events");
+          }}
           onVisibleHeightChange={setSheetHeight}
         />
       )}
@@ -904,6 +937,26 @@ export default function HomePage() {
           hidden={moreHidden}
         />
       )}
+      {tab === "more" && screen === "events" && (
+        <EventsView
+          key={eventEdit?.id ?? "events"}
+          bbox={viewport?.bbox ?? null}
+          initialEdit={eventEdit}
+          onBack={() => {
+            setEventEdit(null);
+            back();
+          }}
+          hidden={moreHidden}
+          onOpen={(event) => {
+            setEventEdit(null);
+            setLayers((l) => ({ ...l, events: true }));
+            openLayerItem({ kind: "event", event });
+          }}
+          onUseMyLocation={myLocation}
+          onPick={requestPick}
+          onChanged={layerData.reloadEvents}
+        />
+      )}
       {tab === "more" && screen === "donate" && config.donation && <DonateView config={config.donation} onBack={back} hidden={moreHidden} />}
       {tab === "more" && screen === "sync" && <SyncView outbox={outbox} online={online} onBack={back} hidden={moreHidden} />}
 
@@ -924,6 +977,7 @@ export default function HomePage() {
         onChange={setLayers}
         gistda={{ available: config.gistda_flood, layer: gistda.layer, status: gistda.status, stale: gistda.stale, onRetry: gistda.retry }}
         cctv={{ available: config.doh_cctv, layer: cctv.layer, status: cctv.status, stale: cctv.stale, onRetry: cctv.retry }}
+        signedIn={user != null}
       />
 
       <Drawer open={mode.kind === "creating"} onOpenChange={(open) => !open && cancelReport()}>

@@ -1,18 +1,21 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { announcementsService, importantPlacesService } from "@/services/community-service";
+import { announcementsService, eventsService, importantPlacesService } from "@/services/community-service";
 import { isAbortError } from "@/services/api-client";
 import { readCache, writeCache } from "@/lib/offline-cache";
 import type { Viewport } from "@/features/reports/use-viewport-reports";
 import { DEFAULT_GISTDA_PERIOD } from "@/lib/official-flood";
-import type { Announcement, GistdaPeriod, ImportantPlace, ImportantPlaceCategory, ImportantPlaceStatus } from "@/types/community";
+import type { Announcement, CommunityEvent, GistdaPeriod, ImportantPlace, ImportantPlaceCategory, ImportantPlaceStatus } from "@/types/community";
 
 const DEBOUNCE_MS = 400;
 // The places layer is detailed; below this zoom a viewport can cover a whole
 // region, so it isn't requested (the UI asks the user to zoom in).
 export const PLACES_MIN_ZOOM = 10;
 const PLACES_CACHE_KEY = "important-places";
+// Community events are drawn from the same zoom as places, so a zoomed-out
+// safety map never fills up with fairs and markets.
+export const EVENTS_MIN_ZOOM = 10;
 
 export interface LayerFilters {
   // Community report markers/zones (data keeps loading; only drawing stops).
@@ -26,6 +29,10 @@ export interface LayerFilters {
   gistdaPeriod: GistdaPeriod;
   // Official DOH highway cameras (features/layers/use-doh-cctv.ts).
   dohCctv: boolean;
+  // Community events (fairs, markets…) — public, separate from incidents.
+  events: boolean;
+  // The signed-in user's own saved places (private; never for guests).
+  savedPlaces: boolean;
 }
 
 export const DEFAULT_LAYERS: LayerFilters = {
@@ -37,6 +44,8 @@ export const DEFAULT_LAYERS: LayerFilters = {
   gistdaFlood: false,
   gistdaPeriod: DEFAULT_GISTDA_PERIOD,
   dohCctv: false,
+  events: true,
+  savedPlaces: true,
 };
 
 // Map overlay data (important places, official announcements) for the
@@ -48,8 +57,12 @@ export function useViewportLayers(viewport: Viewport | null, layers: LayerFilter
   const [placesStatus, setPlacesStatus] = useState<"idle" | "loading" | "ready" | "error" | "zoom">("idle");
   const [placesStaleSince, setPlacesStaleSince] = useState<string | null>(null);
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
+  const [events, setEvents] = useState<CommunityEvent[]>([]);
+  // Bumped after the user creates/edits an event so the layer refetches.
+  const [eventsVersion, setEventsVersion] = useState(0);
   const placesAbort = useRef<AbortController | null>(null);
   const annAbort = useRef<AbortController | null>(null);
+  const eventsAbort = useRef<AbortController | null>(null);
 
   // Bumped after this device adds/edits/deletes a place so the layer refetches.
   const placeKey = JSON.stringify([layers.placeCategories, layers.placeStatuses]);
@@ -105,10 +118,30 @@ export function useViewportLayers(viewport: Viewport | null, layers: LayerFilter
     return () => clearTimeout(timer);
   }, [viewport]);
 
+  useEffect(() => {
+    if (!layers.events || !viewport) return;
+    const timer = setTimeout(async () => {
+      if (viewport.zoom < EVENTS_MIN_ZOOM) {
+        setEvents([]);
+        return;
+      }
+      eventsAbort.current?.abort();
+      const controller = new AbortController();
+      eventsAbort.current = controller;
+      try {
+        setEvents(await eventsService.list({ bbox: viewport.bbox }, controller.signal));
+      } catch {
+        // Keep what's shown; the events screen reports errors.
+      }
+    }, DEBOUNCE_MS);
+    return () => clearTimeout(timer);
+  }, [viewport, layers.events, eventsVersion]);
+
   useEffect(
     () => () => {
       placesAbort.current?.abort();
       annAbort.current?.abort();
+      eventsAbort.current?.abort();
     },
     [],
   );
@@ -121,5 +154,7 @@ export function useViewportLayers(viewport: Viewport | null, layers: LayerFilter
     announcements: layers.announcements ? announcements.filter((a) => a.latitude != null && a.longitude != null) : [],
     // Every announcement for this viewport (incl. area-less ones), most severe first.
     bannerAnnouncements: announcements,
+    events: layers.events ? events : [],
+    reloadEvents: () => setEventsVersion((v) => v + 1),
   };
 }

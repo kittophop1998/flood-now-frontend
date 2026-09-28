@@ -1,50 +1,70 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { useAuth } from "@/features/auth/auth-provider";
 import { savedPlacesService } from "@/services/community-service";
 import { ApiError, isAbortError } from "@/services/api-client";
-import { getDeviceId } from "@/lib/device-id";
-import { readCache, writeCache } from "@/lib/offline-cache";
+import { readCache, removeCache, writeCache } from "@/lib/offline-cache";
 import { useTranslation } from "@/lib/i18n/locale-context";
 import type { SavedPlace, SavedPlaceInput } from "@/types/community";
 
-const CACHE_KEY = "saved-places";
+// Offline copies are per account; the pre-accounts per-device copy is dropped.
+const cacheKey = (userId: string) => `saved-places:${userId}`;
+const LEGACY_CACHE_KEY = "saved-places";
 
-// This device's saved places with their watch-area status. The last list is
-// kept for offline use and flagged with when it was fetched.
+// The signed-in user's private saved places with their watch-area status.
+// Guests have none (status "guest": the screens ask them to sign in). The
+// last list is kept for offline use, per account, flagged with when it was
+// fetched.
 export function useSavedPlaces() {
   const { t } = useTranslation();
-  const [places, setPlaces] = useState<SavedPlace[]>(() => readCache<SavedPlace[]>(CACHE_KEY)?.data ?? []);
-  const [status, setStatus] = useState<"loading" | "ready" | "error">("loading");
+  const { user } = useAuth();
+  const userId = user?.id ?? null;
+  const [places, setPlaces] = useState<SavedPlace[]>([]);
+  const [status, setStatus] = useState<"guest" | "loading" | "ready" | "error">("guest");
   // Set when showing the cached copy because the network failed.
   const [staleSince, setStaleSince] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
 
-  const load = useCallback(async (signal?: AbortSignal) => {
-    try {
-      const list = await savedPlacesService.list(getDeviceId(), signal);
-      setPlaces(list);
-      writeCache(CACHE_KEY, list);
-      setStaleSince(null);
-      setStatus("ready");
-    } catch (err) {
-      if (isAbortError(err)) return;
-      const cached = readCache<SavedPlace[]>(CACHE_KEY);
-      if (cached) {
-        setPlaces(cached.data);
-        setStaleSince(cached.savedAt);
+  const load = useCallback(
+    async (signal?: AbortSignal) => {
+      if (!userId) return;
+      try {
+        const list = await savedPlacesService.list(signal);
+        setPlaces(list);
+        writeCache(cacheKey(userId), list);
+        setStaleSince(null);
         setStatus("ready");
-      } else {
-        setStatus("error");
+      } catch (err) {
+        if (isAbortError(err)) return;
+        const cached = readCache<SavedPlace[]>(cacheKey(userId));
+        if (cached) {
+          setPlaces(cached.data);
+          setStaleSince(cached.savedAt);
+          setStatus("ready");
+        } else {
+          setStatus("error");
+        }
       }
-    }
-  }, []);
+    },
+    [userId],
+  );
 
   useEffect(() => {
+    removeCache(LEGACY_CACHE_KEY);
+    setStaleSince(null);
+    setActionError(null);
+    if (!userId) {
+      setPlaces([]);
+      setStatus("guest");
+      return;
+    }
+    setPlaces(readCache<SavedPlace[]>(cacheKey(userId))?.data ?? []);
+    setStatus("loading");
     const controller = new AbortController();
     load(controller.signal);
     return () => controller.abort();
-  }, [load]);
+  }, [userId, load]);
 
   const run = useCallback(
     async (action: () => Promise<unknown>): Promise<boolean> => {
@@ -61,16 +81,9 @@ export function useSavedPlaces() {
     [load, t],
   );
 
-  const create = useCallback(
-    (input: Omit<SavedPlaceInput, "device_id">) => run(() => savedPlacesService.create({ ...input, device_id: getDeviceId() })),
-    [run],
-  );
-  const update = useCallback(
-    (id: string, input: Omit<SavedPlaceInput, "device_id">) =>
-      run(() => savedPlacesService.update(id, { ...input, device_id: getDeviceId() })),
-    [run],
-  );
-  const remove = useCallback((id: string) => run(() => savedPlacesService.remove(getDeviceId(), id)), [run]);
+  const create = useCallback((input: SavedPlaceInput) => run(() => savedPlacesService.create(input)), [run]);
+  const update = useCallback((id: string, input: SavedPlaceInput) => run(() => savedPlacesService.update(id, input)), [run]);
+  const remove = useCallback((id: string) => run(() => savedPlacesService.remove(id)), [run]);
 
   return { places, status, staleSince, actionError, reload: () => load(), create, update, remove };
 }

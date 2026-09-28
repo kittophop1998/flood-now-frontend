@@ -1,5 +1,8 @@
 "use client";
 
+import { LockKeyhole } from "lucide-react";
+import { useAuth } from "@/features/auth/auth-provider";
+import { canReport } from "@/lib/auth-gate";
 import {
   CATEGORY_META,
   SEVERITY_META,
@@ -40,22 +43,26 @@ export function CategoryPicker({
   invalid?: boolean;
 }) {
   const { t } = useTranslation();
+  const { user, requireAuth } = useAuth();
   // Ten year-round categories, all equal (no category is the default):
   // two columns of icon + label on phones, 5 × 2 tiles on wider screens —
-  // always full rows.
+  // always full rows. A guest can report the safety-critical ones; the rest
+  // show a lock and ask to sign in first (then get selected).
   return (
     <div role="radiogroup" aria-labelledby={labelledBy} aria-invalid={invalid} className="grid grid-cols-2 gap-2 sm:grid-cols-5">
       {CREATABLE_REPORT_TYPES.map((type) => {
         const meta = CATEGORY_META[type];
         const Icon = meta.icon;
         const selected = value === type;
+        const locked = !canReport(type, user != null);
         return (
           <button
             key={type}
             type="button"
             role="radio"
             aria-checked={selected}
-            onClick={() => onChange(type)}
+            aria-label={locked ? `${categoryLabel(t, type)} (${t("categoryNeedsSignIn")})` : undefined}
+            onClick={() => (locked ? requireAuth("reportCategory", () => onChange(type)) : onChange(type))}
             className={cn(
               "flex min-h-12 items-center gap-2.5 rounded-xl border px-2.5 py-2 text-left text-sm leading-tight font-medium transition-colors sm:min-h-[76px] sm:flex-col sm:justify-center sm:gap-1.5 sm:px-1 sm:text-center sm:text-xs",
               optionFocus,
@@ -65,7 +72,8 @@ export function CategoryPicker({
             <span className="flex size-8 shrink-0 items-center justify-center rounded-full text-white" style={{ backgroundColor: meta.color }}>
               <Icon className="size-4" aria-hidden />
             </span>
-            {categoryLabel(t, type)}
+            <span className="min-w-0 flex-1 sm:flex-none">{categoryLabel(t, type)}</span>
+            {locked && <LockKeyhole className="size-3.5 shrink-0 text-muted-foreground" aria-hidden />}
           </button>
         );
       })}

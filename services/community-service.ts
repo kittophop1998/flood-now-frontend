@@ -4,6 +4,8 @@ import type { BoundingBox, Vehicle } from "@/types/report";
 import type {
   Announcement,
   CctvLayer,
+  CommunityEvent,
+  EventInput,
   CreateSosInput,
   FloodLayer,
   GistdaPeriod,
@@ -22,16 +24,14 @@ import type {
   SosStatus,
 } from "@/types/community";
 
-// Saved places are private to this device: every call carries device_id.
+// Saved places are private to the signed-in user (session token); guests
+// get 401 and never call these.
 export const savedPlacesService = {
-  list: (deviceId: string, signal?: AbortSignal) =>
-    apiClient
-      .get<{ saved_places: SavedPlace[] }>(`/api/v1/saved-places${toQuery({ device_id: deviceId })}`, signal)
-      .then((r) => r.saved_places),
+  list: (signal?: AbortSignal) =>
+    apiClient.get<{ saved_places: SavedPlace[] }>("/api/v1/saved-places", signal).then((r) => r.saved_places),
   create: (input: SavedPlaceInput) => apiClient.post<SavedPlace>("/api/v1/saved-places", input),
   update: (id: string, input: SavedPlaceInput) => apiClient.patch<SavedPlace>(`/api/v1/saved-places/${id}`, input),
-  remove: (deviceId: string, id: string) =>
-    apiClient.delete<void>(`/api/v1/saved-places/${id}${toQuery({ device_id: deviceId })}`),
+  remove: (id: string) => apiClient.delete<void>(`/api/v1/saved-places/${id}`),
 };
 
 export const routesService = {
@@ -106,6 +106,21 @@ export const cctvService = {
       `/api/v1/cctv/nearby${toQuery({ lat: query.at.latitude, lng: query.at.longitude, radius_m: query.radiusM, limit: query.limit })}`,
       signal,
     ),
+};
+
+// Community events: public reads; writes need a session and only the
+// organizer may edit/cancel/delete (the API decides).
+export const eventsService = {
+  list: (query: { bbox?: BoundingBox; limit?: number } = {}, signal?: AbortSignal) =>
+    apiClient
+      .get<{ events: CommunityEvent[] }>(`/api/v1/events${toQuery({ ...bboxParams(query.bbox), limit: query.limit })}`, signal)
+      .then((r) => r.events),
+  mine: (signal?: AbortSignal) => apiClient.get<{ events: CommunityEvent[] }>("/api/v1/events/mine", signal).then((r) => r.events),
+  get: (id: string) => apiClient.get<CommunityEvent>(`/api/v1/events/${id}`),
+  create: (input: EventInput) => apiClient.post<CommunityEvent>("/api/v1/events", input),
+  update: (id: string, input: EventInput) => apiClient.patch<CommunityEvent>(`/api/v1/events/${id}`, input),
+  cancel: (id: string) => apiClient.post<CommunityEvent>(`/api/v1/events/${id}/cancel`),
+  remove: (id: string) => apiClient.delete<void>(`/api/v1/events/${id}`),
 };
 
 export const configService = {
