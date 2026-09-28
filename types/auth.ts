@@ -8,10 +8,17 @@ export interface AuthUser {
   created_at: string;
 }
 
+// Sign-up / sign-in. The session token is only in the HttpOnly cookie.
 export interface AuthSessionResponse {
-  token: string;
   expires_in: number;
   user: AuthUser;
+  csrf_token: string;
+}
+
+// GET /auth/session — a guest is { user: null, csrf_token: null }.
+export interface AuthSessionState {
+  user: AuthUser | null;
+  csrf_token: string | null;
 }
 
 export interface RegisterInput {

@@ -3,7 +3,15 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
 import { AuthSheet, type AuthSheetMode } from "@/components/auth/auth-sheet";
 import { authService } from "@/services/auth-service";
-import { getAuthSession, setAuthSession, subscribeAuthSession, type AuthSession } from "@/lib/auth-session";
+import { ApiError } from "@/services/api-client";
+import {
+  forgetLegacyStoredSession,
+  getAuthSession,
+  onAuthChangedElsewhere,
+  setAuthSession,
+  subscribeAuthSession,
+  type AuthSession,
+} from "@/lib/auth-session";
 import type { AuthReason } from "@/lib/auth-gate";
 import type { AuthUser } from "@/types/auth";
 
@@ -15,6 +23,8 @@ interface AuthContextValue {
   // place the app decides "needs an account" — see lib/auth-gate.ts.
   requireAuth: (reason: AuthReason, action?: () => void) => boolean;
   openSignIn: (mode?: Exclude<AuthSheetMode, "prompt">) => void;
+  // Ends the session on the server. Throws when that fails (e.g. offline):
+  // the HttpOnly cookie can only be revoked by the API, so we stay signed in.
   signOut: () => Promise<void>;
 }
 
@@ -28,22 +38,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [sheet, setSheet] = useState<{ mode: AuthSheetMode; reason: AuthReason } | null>(null);
   const pending = useRef<(() => void) | null>(null);
 
-  // Revalidate a stored session once per load (expired → back to guest; the
-  // api client clears it on 401). Offline keeps the stored session.
-  const token = session?.token;
+  // Who is signed in comes from the session cookie, read by the API: once
+  // per load and whenever another tab signs in or out. Offline (or until it
+  // answers) the app is in guest mode; the cookie is untouched either way.
   useEffect(() => {
-    if (!token) return;
-    const controller = new AbortController();
-    authService
-      .me(controller.signal)
-      .then((fresh) => {
-        const cur = getAuthSession();
-        if (cur?.token === token) setAuthSession({ token, user: fresh });
-      })
-      .catch(() => {});
-    return () => controller.abort();
-    // Only for the token present at load / sign-in.
-  }, [token]);
+    forgetLegacyStoredSession();
+    let controller = new AbortController();
+    const load = () => {
+      controller.abort();
+      controller = new AbortController();
+      authService.refresh(controller.signal).catch(() => {});
+    };
+    load();
+    const unsubscribe = onAuthChangedElsewhere(load);
+    return () => {
+      unsubscribe();
+      controller.abort();
+    };
+  }, []);
 
   const requireAuth = useCallback(
     (reason: AuthReason, action?: () => void) => {
@@ -66,10 +78,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const signOut = useCallback(async () => {
     try {
       await authService.logout();
-    } catch {
-      // Offline or already expired: forgetting it locally is what matters.
+    } catch (err) {
+      // Already signed out on the server: nothing left to revoke.
+      if (!(err instanceof ApiError && err.status === 401)) throw err;
     }
-    setAuthSession(null);
+    setAuthSession(null, true);
   }, []);
 
   const value = useMemo(() => ({ user, requireAuth, openSignIn, signOut }), [user, requireAuth, openSignIn, signOut]);
@@ -87,7 +100,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           setSheet(null);
         }}
         onSignedIn={(next) => {
-          setAuthSession(next);
+          setAuthSession(next, true);
           setSheet(null);
           const action = pending.current;
           pending.current = null;

@@ -59,7 +59,7 @@ export function AuthSheet({
         mode === "register"
           ? await authService.register({ email, password, display_name: displayName, device_id: deviceId })
           : await authService.login({ email, password, device_id: deviceId });
-      onSignedIn({ token: res.token, user: res.user });
+      onSignedIn({ user: res.user, csrfToken: res.csrf_token });
       setPassword("");
     } catch (err) {
       setError(authErrorMessage(err, mode, t));

@@ -870,6 +870,7 @@ export const en = {
   authRegister: "Create account",
   authLoginOrRegister: "Sign in or create an account",
   authSignOut: "Sign out",
+  authSignOutFailed: "Couldn't sign out. Check your connection and try again.",
   authLoginTitle: "Sign in",
   authRegisterTitle: "Create an account",
   authRequiredTitle: "Sign in to use this feature",

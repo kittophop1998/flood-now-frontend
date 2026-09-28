@@ -1,5 +1,6 @@
 "use client";
 
+import { toast } from "sonner";
 import {
   Bookmark,
   CalendarDays,
@@ -69,7 +70,11 @@ export function MoreView({
               <span className="block truncate font-medium">{user.display_name}</span>
               <span className="block truncate text-sm text-muted-foreground">{user.email}</span>
             </span>
-            <Button variant="outline" className="h-11 shrink-0 rounded-xl" onClick={signOut}>
+            <Button
+              variant="outline"
+              className="h-11 shrink-0 rounded-xl"
+              onClick={() => signOut().catch(() => toast.error(t("authSignOutFailed")))}
+            >
               <LogOut aria-hidden />
               {t("authSignOut")}
             </Button>
