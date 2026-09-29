@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { providerService, serviceRequestsService } from "@/services/local-services-service";
 import { ApiError, isAbortError } from "@/services/api-client";
+import { forgetTopup, recalledTopup, rememberTopup } from "@/lib/pending-topup";
 import type {
   CancelReason,
   IssueReason,
@@ -203,6 +204,17 @@ export function useWallet(enabled: boolean) {
     const controller = new AbortController();
     setStatus((s) => (s === "ready" ? s : "loading"));
     load(controller.signal);
+    // A QR shown before the app was left/reloaded: bring back its result
+    // (or the QR itself if still unpaid). 404 = not this account's → forget.
+    const remembered = recalledTopup();
+    if (remembered) {
+      providerService
+        .topup(remembered, controller.signal)
+        .then((t) => setPayment((cur) => cur ?? t))
+        .catch((err) => {
+          if (err instanceof ApiError && err.status === 404) forgetTopup();
+        });
+    }
     return () => controller.abort();
   }, [enabled, load]);
 
@@ -227,9 +239,17 @@ export function useWallet(enabled: boolean) {
       if (!stopped) timer = setTimeout(poll, 3000);
     };
     timer = setTimeout(poll, 3000);
+    // Coming back from the banking app: check right away.
+    const onVisible = () => {
+      if (document.visibilityState !== "visible" || stopped) return;
+      clearTimeout(timer);
+      poll();
+    };
+    document.addEventListener("visibilitychange", onVisible);
     return () => {
       stopped = true;
       clearTimeout(timer);
+      document.removeEventListener("visibilitychange", onVisible);
     };
   }, [paymentId, waiting, load]);
 
@@ -238,7 +258,9 @@ export function useWallet(enabled: boolean) {
       setStartError(null);
       setStarting(true);
       try {
-        setPayment(await providerService.startTopup(packageId));
+        const t = await providerService.startTopup(packageId);
+        rememberTopup(t.id);
+        setPayment(t);
         load();
       } catch (err) {
         setStartError(apiMessage(err) ?? "network");
@@ -255,8 +277,15 @@ export function useWallet(enabled: boolean) {
     reload: () => load(),
     payment,
     // Show an unpaid QR again (from the top-up history).
-    resume: (t: Topup) => setPayment(t),
-    closePayment: () => setPayment(null),
+    resume: (t: Topup) => {
+      rememberTopup(t.id);
+      setPayment(t);
+    },
+    // Done / cancel: the result has been seen, stop remembering it.
+    closePayment: () => {
+      forgetTopup();
+      setPayment(null);
+    },
     startTopup,
     starting,
     startError,

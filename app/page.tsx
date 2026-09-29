@@ -52,6 +52,7 @@ import { useSavedPlaces } from "@/features/places/use-saved-places";
 import { useRouteEvaluation } from "@/features/route/use-route-evaluation";
 import { useSos } from "@/features/sos/use-sos";
 import { useMyServiceRequests } from "@/features/services/use-customer-services";
+import { recalledTopup } from "@/lib/pending-topup";
 import { DEFAULT_LAYERS, useViewportLayers, type LayerFilters } from "@/features/layers/use-viewport-layers";
 import { useGistdaFlood } from "@/features/layers/use-gistda-flood";
 import { useDohCctv } from "@/features/layers/use-doh-cctv";
@@ -233,6 +234,15 @@ export default function HomePage() {
   const closeReport = useCallback(() => {
     setSelected(null);
     setReportParam(null);
+  }, []);
+
+  // Paid a PromptPay top-up in the banking app and the page reloaded
+  // meanwhile: reopen the provider credit screen to show the result.
+  useEffect(() => {
+    if (recalledTopup(30 * 60 * 1000)) {
+      setTab("more");
+      setMoreScreen("provider");
+    }
   }, []);
 
   // Shared links: /?report=<id> opens that report over the map.

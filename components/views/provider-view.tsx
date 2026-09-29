@@ -33,6 +33,7 @@ import { EmptyState, ViewShell } from "@/components/views/view-shell";
 import { useAuth } from "@/features/auth/auth-provider";
 import { useNow } from "@/features/common/use-now";
 import { useMyProvider, useProviderWork, useWallet, type ProviderWorkApi } from "@/features/services/use-provider";
+import { recalledTopup } from "@/lib/pending-topup";
 import { directionsUrl } from "@/lib/directions";
 import { formatDistance } from "@/lib/distance";
 import { formatFreshness } from "@/lib/freshness";
@@ -149,7 +150,8 @@ function Dashboard({
 }) {
   const { t } = useTranslation();
   const p = me.provider!;
-  const [tab, setTab] = useState<ProviderTab>(initialTab ?? "requests");
+  // A top-up QR left on screen earlier: open on the credit tab to show its result.
+  const [tab, setTab] = useState<ProviderTab>(() => initialTab ?? (recalledTopup() ? "wallet" : "requests"));
   const [toggling, setToggling] = useState(false);
   const work = useProviderWork(true, p.available && p.status === "active");
   const wallet = useWallet(true);
