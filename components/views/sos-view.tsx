@@ -9,6 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { SosStatusBadge } from "@/components/community/badges";
 import { LocationField, type LocationValue } from "@/components/community/location-field";
+import { MapLocationPicker } from "@/components/map/map-location-picker";
 import { ViewShell } from "@/components/views/view-shell";
 import { useNow } from "@/features/common/use-now";
 import type { SosApi } from "@/features/sos/use-sos";
@@ -18,8 +19,6 @@ import { useAuth } from "@/features/auth/auth-provider";
 import { useTranslation } from "@/lib/i18n/locale-context";
 import { cn } from "@/lib/utils";
 import { SOS_TYPES, type LatLng, type SosRequest, type SosType } from "@/types/community";
-
-type PickFn = (title: string, onPick: (p: LatLng) => void) => void;
 
 const EMERGENCY_NUMBERS = ["1669", "1784", "191"];
 
@@ -31,14 +30,15 @@ export function SosView({
   onBack,
   hidden,
   onUseMyLocation,
-  onPick,
+  userLocation,
 }: {
   sos: SosApi;
   online: boolean;
   onBack: () => void;
   hidden?: boolean;
   onUseMyLocation: () => Promise<LatLng | null>;
-  onPick: PickFn;
+  // Where the map picker starts when no location is chosen yet.
+  userLocation: LatLng | null;
 }) {
   const { t } = useTranslation();
   const history = sos.mine.filter((r) => r.id !== sos.active?.id).slice(0, 5);
@@ -49,7 +49,7 @@ export function SosView({
       {sos.active ? (
         <ActiveSos request={sos.active} sos={sos} />
       ) : (
-        <SosForm sos={sos} online={online} onUseMyLocation={onUseMyLocation} onPick={onPick} />
+        <SosForm sos={sos} online={online} onUseMyLocation={onUseMyLocation} userLocation={userLocation} />
       )}
       {history.length > 0 && (
         <section aria-labelledby="sos-history" className="flex flex-col gap-2">
@@ -99,12 +99,12 @@ function SosForm({
   sos,
   online,
   onUseMyLocation,
-  onPick,
+  userLocation,
 }: {
   sos: SosApi;
   online: boolean;
   onUseMyLocation: () => Promise<LatLng | null>;
-  onPick: PickFn;
+  userLocation: LatLng | null;
 }) {
   const { t } = useTranslation();
   const { user, requireAuth } = useAuth();
@@ -115,6 +115,7 @@ function SosForm({
   const [location, setLocation] = useState<LocationValue | null>(null);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [missing, setMissing] = useState(false);
+  const [picker, setPicker] = useState<{ search: boolean } | null>(null);
   const sending = sos.send.status === "sending";
 
   function review() {
@@ -207,9 +208,23 @@ function SosForm({
         value={location}
         onChange={setLocation}
         onUseMyLocation={onUseMyLocation}
-        onPickOnMap={() => onPick(t("pickSosTitle"), setLocation)}
+        onPickOnMap={() => setPicker({ search: false })}
+        onSearch={() => setPicker({ search: true })}
         invalid={missing && !location}
       />
+      {picker && (
+        <MapLocationPicker
+          title={t("pickSosTitle")}
+          value={location}
+          initialCenter={userLocation}
+          autoFocusSearch={picker.search}
+          onCancel={() => setPicker(null)}
+          onConfirm={(next) => {
+            setLocation(next);
+            setPicker(null);
+          }}
+        />
+      )}
 
       <div className="flex items-center justify-between gap-3">
         <span id="sos-people" className="text-sm font-semibold">

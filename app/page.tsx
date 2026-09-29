@@ -903,7 +903,7 @@ export default function HomePage() {
         />
       )}
       {tab === "more" && screen === "sos" && (
-        <SosView sos={sos} online={online} onBack={back} hidden={moreHidden} onUseMyLocation={myLocation} onPick={requestPick} />
+        <SosView sos={sos} online={online} onBack={back} hidden={moreHidden} onUseMyLocation={myLocation} userLocation={userLocation} />
       )}
       {tab === "more" && screen === "helper" && (
         <HelperView
