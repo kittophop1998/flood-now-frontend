@@ -64,7 +64,7 @@ export function CategoryPicker({
             aria-label={locked ? `${categoryLabel(t, type)} (${t("categoryNeedsSignIn")})` : undefined}
             onClick={() => (locked ? requireAuth("reportCategory", () => onChange(type)) : onChange(type))}
             className={cn(
-              "flex min-h-12 items-center gap-2.5 rounded-xl border px-2.5 py-2 text-left text-sm leading-tight font-medium transition-colors sm:min-h-[76px] sm:flex-col sm:justify-center sm:gap-1.5 sm:px-1 sm:text-center sm:text-xs",
+              "relative flex min-h-12 items-center gap-2.5 rounded-xl border px-2.5 py-2 text-left text-sm leading-tight font-medium transition-colors sm:min-h-[76px] sm:flex-col sm:justify-center sm:gap-1.5 sm:px-1 sm:text-center sm:text-xs",
               optionFocus,
               selected ? "border-primary bg-accent text-foreground ring-2 ring-primary/30" : "bg-background hover:bg-muted",
             )}
@@ -73,7 +73,7 @@ export function CategoryPicker({
               <Icon className="size-4" aria-hidden />
             </span>
             <span className="min-w-0 flex-1 sm:flex-none">{categoryLabel(t, type)}</span>
-            {locked && <LockKeyhole className="size-3.5 shrink-0 text-muted-foreground" aria-hidden />}
+            {locked && <LockKeyhole className="absolute top-1.5 right-1.5 size-3 text-muted-foreground" aria-hidden />}
           </button>
         );
       })}

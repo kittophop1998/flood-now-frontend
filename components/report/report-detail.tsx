@@ -228,6 +228,12 @@ export function ReportDetailPopup({
         />
       )}
 
+      {report.description?.trim() && (
+        <DetailSection title={t("descriptionHeading")}>
+          <p className="text-sm leading-relaxed break-words whitespace-pre-line">{report.description}</p>
+        </DetailSection>
+      )}
+
       {fields.passability && hasKnownPassability(report.passability) && (
         <DetailSection title={t("passabilityHeading")}>
           <PassabilityGrid passability={report.passability} />
@@ -263,7 +269,7 @@ export function ReportDetailPopup({
             pending={pendingStatus === "cleared"}
             disabled={pendingStatus !== null}
             icon={<CircleX />}
-            hint={t("voteGoneHint")}
+            hint={t(report.type === "flooded" ? "voteGoneHintFlood" : "voteGoneHint")}
             onClick={() => handleVote("cleared")}
           >
             {t("voteGone")}
@@ -286,14 +292,6 @@ export function ReportDetailPopup({
           )}
         </div>
       </section>
-
-      <ReportReactions report={report} onReacted={onConfirmed} />
-
-      {report.description?.trim() && (
-        <DetailSection title={t("descriptionHeading")}>
-          <p className="text-sm leading-relaxed break-words whitespace-pre-line">{report.description}</p>
-        </DetailSection>
-      )}
 
       <DetailList>
         <DetailRow label={t("severityHeading")}>
@@ -366,6 +364,8 @@ export function ReportDetailPopup({
           </span>
         </DetailRow>
       </DetailList>
+
+      <ReportReactions report={report} onReacted={onConfirmed} />
 
       <NearbyCctv at={report} enabled={cctvEnabled} onOpen={onOpenCamera} />
 

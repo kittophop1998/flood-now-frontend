@@ -61,9 +61,11 @@ export function LocationPicker({
           <p className="truncate font-medium">
             {place?.name ?? (addressStatus === "loading" ? t("locatingAddress") : t("locationPinned"))}
           </p>
-          <p className="text-xs text-muted-foreground tabular-nums">
-            {point.latitude.toFixed(5)}, {point.longitude.toFixed(5)}
-          </p>
+          {!place && (
+            <p className="text-xs text-muted-foreground tabular-nums">
+              {point.latitude.toFixed(5)}, {point.longitude.toFixed(5)}
+            </p>
+          )}
         </div>
       </div>
 

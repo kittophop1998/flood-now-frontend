@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { CategoryIcon, SeverityBadge, StatusBadge } from "@/components/report/report-badges";
 import { formatDistance } from "@/lib/distance";
 import { formatFreshness, freshnessLine } from "@/lib/freshness";
-import { categoryLabel, keyDetail } from "@/lib/report-meta";
+import { categoryLabel, keyDetail, severityRank } from "@/lib/report-meta";
 import { currentStatus } from "@/lib/report-status";
 import { SITUATION_RADIUS_M, type Situation } from "@/lib/situation";
 import { useTranslation } from "@/lib/i18n/locale-context";
@@ -80,6 +80,9 @@ export function SituationSheet({
   const radius = formatDistance(SITUATION_RADIUS_M, t);
   const { incidents, top } = situation;
   const count = incidents.length;
+  // Severe (high/critical) incidents are called out in the one-line summary,
+  // so the minimized sheet already says whether anything nearby is dangerous.
+  const severe = incidents.filter((r) => severityRank(r.severity) >= 3).length;
   const title = aroundUser ? t("situationTitle") : t("situationTitleMap");
   const ready = status === "ready";
   const summary = !ready
@@ -90,7 +93,7 @@ export function SituationSheet({
       : t("situationChecking")
     : count === 0
       ? t(aroundUser ? "situationClear" : "situationClearMap", { d: radius })
-      : t(count === 1 ? "situationCountOne" : "situationCount", { n: count, d: radius });
+      : t(count === 1 ? "situationCountOne" : "situationCount", { n: count, d: radius }) + (severe > 0 ? ` · ${t("situationSevere", { n: severe })}` : "");
 
   return (
     <section ref={sheetRef} aria-label={title} className={shell}>
@@ -215,6 +218,7 @@ function IncidentRow({ report, now, onOpen }: { report: Report; now: Date; onOpe
   const { t } = useTranslation();
   const status = currentStatus(report, now);
   const detail = keyDetail(t, report);
+  const lead = status === "possibly_stale" ? t("status.possibly_stale") : detail;
   return (
     <button
       type="button"
@@ -226,9 +230,13 @@ function IncidentRow({ report, now, onOpen }: { report: Report; now: Date; onOpe
     >
       <CategoryIcon type={report.type} size="sm" />
       <span className="min-w-0 flex-1">
-        <span className="block truncate text-sm font-medium">{categoryLabel(t, report.type)}</span>
+        <span className="flex items-center gap-1.5">
+          <span className="truncate text-sm font-medium">{categoryLabel(t, report.type)}</span>
+          <SeverityBadge severity={report.severity} className="px-1.5 py-0 text-[11px] leading-4 [&_svg]:size-3" />
+        </span>
         <span className="block truncate text-xs text-muted-foreground">
-          {status === "possibly_stale" ? t("status.possibly_stale") : (detail ?? t(`severity.${report.severity}`))} · {freshnessLine(report, t, now)}
+          {lead ? `${lead} · ` : ""}
+          {freshnessLine(report, t, now)}
         </span>
       </span>
       {report.distance_m != null && <span className="shrink-0 text-sm tabular-nums text-muted-foreground">{formatDistance(report.distance_m, t)}</span>}

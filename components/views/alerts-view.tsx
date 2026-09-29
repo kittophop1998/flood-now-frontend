@@ -145,23 +145,26 @@ export function AlertsView({
         )}
       </section>
 
-      <section aria-labelledby="notify-title" className="flex flex-col gap-1 rounded-2xl border bg-card p-4 shadow-xs">
-        <h2 id="notify-title" className="mb-1 font-semibold">
-          {t("notifyTitle")}
-        </h2>
-        {NOTIFICATION_KINDS.map((kind) => (
-          <div key={kind} className="flex min-h-11 items-center justify-between gap-3">
-            <Label htmlFor={`notify-${kind}`} className="font-normal leading-snug">
-              {t(`notify.${kind}`)}
-            </Label>
-            <Switch
-              id={`notify-${kind}`}
-              checked={alerts.prefs[kind]}
-              onCheckedChange={(checked) => alerts.setPrefs({ ...alerts.prefs, [kind]: checked })}
-            />
-          </div>
-        ))}
-      </section>
+      {/* Preferences only matter once something is followed. */}
+      {alerts.follows.length > 0 && (
+        <section aria-labelledby="notify-title" className="flex flex-col gap-1 rounded-2xl border bg-card p-4 shadow-xs">
+          <h2 id="notify-title" className="mb-1 font-semibold">
+            {t("notifyTitle")}
+          </h2>
+          {NOTIFICATION_KINDS.map((kind) => (
+            <div key={kind} className="flex min-h-11 items-center justify-between gap-3">
+              <Label htmlFor={`notify-${kind}`} className="font-normal leading-snug">
+                {t(`notify.${kind}`)}
+              </Label>
+              <Switch
+                id={`notify-${kind}`}
+                checked={alerts.prefs[kind]}
+                onCheckedChange={(checked) => alerts.setPrefs({ ...alerts.prefs, [kind]: checked })}
+              />
+            </div>
+          ))}
+        </section>
+      )}
 
       <section aria-labelledby="feed-title" className="flex flex-col gap-2">
         <h2 id="feed-title" className="px-1 pt-1 font-semibold">

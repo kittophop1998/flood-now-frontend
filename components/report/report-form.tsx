@@ -138,9 +138,11 @@ export function ReportForm({
               <p className="truncate text-sm font-semibold">
                 {place?.name ?? (addressStatus === "loading" ? t("locatingAddress") : t("locationPinned"))}
               </p>
-              <p className="text-xs text-muted-foreground tabular-nums">
-                {location.latitude.toFixed(5)}, {location.longitude.toFixed(5)}
-              </p>
+              {!place && (
+                <p className="text-xs text-muted-foreground tabular-nums">
+                  {location.latitude.toFixed(5)}, {location.longitude.toFixed(5)}
+                </p>
+              )}
             </div>
             <Button type="button" variant="outline" className="h-11 shrink-0 rounded-xl" onClick={() => onChangeLocation(currentDraft())}>
               <Pencil aria-hidden />
