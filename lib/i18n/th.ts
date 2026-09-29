@@ -869,6 +869,7 @@ export const th: Record<TranslationKey, string> = {
   authLogin: "เข้าสู่ระบบ",
   authRegister: "สมัครสมาชิก",
   authLoginOrRegister: "เข้าสู่ระบบหรือสมัครสมาชิก",
+  authRequiredLabel: "ต้องเข้าสู่ระบบ",
   authSignOut: "ออกจากระบบ",
   authSignOutFailed: "ออกจากระบบไม่สำเร็จ ตรวจสอบอินเทอร์เน็ตแล้วลองอีกครั้ง",
   authLoginTitle: "เข้าสู่ระบบ",

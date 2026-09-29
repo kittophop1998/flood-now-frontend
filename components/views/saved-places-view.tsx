@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Bell, BellOff, Bookmark, CircleAlert, Loader2, MapPinned, Pencil, Plus, Route, Trash2 } from "lucide-react";
+import { Bell, BellOff, Bookmark, CircleAlert, Loader2, Lock, MapPinned, Pencil, Plus, Route, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -75,7 +75,7 @@ export function SavedPlacesView({
   onRouteTo: (place: SavedPlace) => void;
 }) {
   const { t } = useTranslation();
-  const { requireAuth } = useAuth();
+  const { user, requireAuth } = useAuth();
   const now = useNow();
   const [draft, setDraft] = useState<Draft | null>(null);
   const [saving, setSaving] = useState(false);
@@ -253,7 +253,7 @@ export function SavedPlacesView({
         </section>
       ) : (
         <Button className="h-12 rounded-xl text-base" onClick={() => requireAuth("savePlace", () => setDraft(draftFrom(null, t("placeIcon.home"))))}>
-          <Plus aria-hidden />
+          {user ? <Plus aria-hidden /> : <Lock aria-label={t("authRequiredLabel")} />}
           {t("addPlace")}
         </Button>
       )}

@@ -872,6 +872,7 @@ export const en = {
   authLogin: "Sign in",
   authRegister: "Create account",
   authLoginOrRegister: "Sign in or create an account",
+  authRequiredLabel: "Sign in required",
   authSignOut: "Sign out",
   authSignOutFailed: "Couldn't sign out. Check your connection and try again.",
   authLoginTitle: "Sign in",

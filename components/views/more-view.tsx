@@ -12,6 +12,7 @@ import {
   Heart,
   Hospital,
   Languages,
+  Lock,
   Megaphone,
   Phone,
   Radar,
@@ -76,7 +77,7 @@ export function MoreView({
   hidden?: boolean;
 }) {
   const { t } = useTranslation();
-  const { user, openSignIn, signOut } = useAuth();
+  const { user, openSignIn, signOut, requireAuth } = useAuth();
   // Only to label the provider entry ("register" vs "provider mode").
   const myProvider = useMyProvider(localServices && user != null);
   return (
@@ -162,7 +163,9 @@ export function MoreView({
               icon={Store}
               label={t("providerMenuTitle")}
               hint={myProvider.provider ? t("providerMenuMode") : t("providerMenuRegister")}
-              onClick={() => onOpen("provider")}
+              locked={!user}
+              // Provider mode is signed-in only: guests sign in first, then land in it.
+              onClick={() => requireAuth("provider", () => onOpen("provider"))}
             />
           )}
         </ul>
@@ -234,7 +237,23 @@ export function MoreView({
   );
 }
 
-function MenuRow({ icon: Icon, label, hint, onClick, accent }: { icon: LucideIcon; label: string; hint: string; onClick: () => void; accent?: boolean }) {
+function MenuRow({
+  icon: Icon,
+  label,
+  hint,
+  onClick,
+  accent,
+  locked,
+}: {
+  icon: LucideIcon;
+  label: string;
+  hint: string;
+  onClick: () => void;
+  accent?: boolean;
+  // Signed-in only entry, shown to a guest.
+  locked?: boolean;
+}) {
+  const { t } = useTranslation();
   return (
     <li>
       <button
@@ -246,7 +265,15 @@ function MenuRow({ icon: Icon, label, hint, onClick, accent }: { icon: LucideIco
           <Icon className="size-5" aria-hidden />
         </span>
         <span className="min-w-0 flex-1">
-          <span className="block font-medium">{label}</span>
+          <span className="flex items-center gap-1.5 font-medium">
+            {label}
+            {locked && (
+              <span className="inline-flex items-center gap-1 rounded-full bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground">
+                <Lock className="size-3" aria-hidden />
+                {t("authRequiredLabel")}
+              </span>
+            )}
+          </span>
           <span className="block truncate text-sm text-muted-foreground">{hint}</span>
         </span>
         <ChevronRight className="size-5 shrink-0 text-muted-foreground" aria-hidden />

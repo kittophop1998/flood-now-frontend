@@ -1,6 +1,6 @@
 "use client";
 
-import { LockKeyhole } from "lucide-react";
+import { Lock, LockKeyhole } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/views/view-shell";
 import { useAuth } from "@/features/auth/auth-provider";
@@ -19,6 +19,7 @@ export function SignInCard({ reason, title, hint, onSignedIn }: { reason: AuthRe
       hint={hint}
       action={
         <Button className="mt-2 h-11 rounded-xl" onClick={() => requireAuth(reason, onSignedIn)}>
+          <Lock aria-hidden />
           {t("authLoginOrRegister")}
         </Button>
       }

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { CalendarDays, CalendarPlus, CircleAlert, Clock, Loader2, MapPin, Pencil, Trash2, XCircle } from "lucide-react";
+import { CalendarDays, CalendarPlus, CircleAlert, Clock, Loader2, Lock, MapPin, Pencil, Trash2, XCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
@@ -307,7 +307,7 @@ export function EventsView({
   return (
     <ViewShell title={t("eventsTitle")} subtitle={t("eventsSubtitle")} onBack={onBack} hidden={hidden}>
       <Button className="h-12 rounded-xl text-base" onClick={startCreate}>
-        <CalendarPlus aria-hidden />
+        {user ? <CalendarPlus aria-hidden /> : <Lock aria-label={t("authRequiredLabel")} />}
         {t("eventCreate")}
       </Button>
 
