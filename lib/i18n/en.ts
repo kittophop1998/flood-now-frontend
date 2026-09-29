@@ -1183,6 +1183,8 @@ export const en = {
   walletHistory: "Credit history",
   walletNoTransactions: "No credit activity yet",
   walletTopups: "Top-ups",
+  walletShowAll: "Show all ({n})",
+  walletShowLess: "Show latest only",
   walletLoadFailed: "Couldn't load your credit",
   "creditTx.welcome_credit": "Welcome credit",
   "creditTx.top_up": "Top-up",

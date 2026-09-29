@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
-import { Check, CircleAlert, CircleCheck, Download, Loader2, QrCode as QrIcon, RotateCw, ScanLine, Smartphone, TriangleAlert, Wallet as WalletIcon } from "lucide-react";
+import { Check, ChevronDown, ChevronUp, CircleAlert, CircleCheck, Download, Loader2, QrCode as QrIcon, RotateCw, ScanLine, Smartphone, TriangleAlert, Wallet as WalletIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ToneBadge } from "@/components/community/badges";
 import { QrCode } from "@/components/community/qr-code";
@@ -18,6 +18,9 @@ import type { Topup, TopupPackage } from "@/types/local-services";
 
 type WalletApi = ReturnType<typeof useWallet>;
 
+// History lists show only the newest few until expanded.
+const HISTORY_PREVIEW = 5;
+
 // FloodNow credit: what a provider pays per qualified match (customer
 // selected them AND they accepted). Top-ups are PromptPay only (a Stripe
 // PromptPay payment whose QR is shown here) and are credited only after
@@ -26,6 +29,8 @@ type WalletApi = ReturnType<typeof useWallet>;
 export function WalletPanel({ wallet: w }: { wallet: WalletApi }) {
   const { t, locale } = useTranslation();
   const now = new Date();
+  const [allTx, setAllTx] = useState(false);
+  const [allTopups, setAllTopups] = useState(false);
 
   if (w.status === "loading" && !w.wallet) return <div className="h-40 animate-pulse rounded-2xl bg-background" aria-hidden />;
   if (w.status === "error" && !w.wallet)
@@ -74,7 +79,7 @@ export function WalletPanel({ wallet: w }: { wallet: WalletApi }) {
           <p className="rounded-2xl border border-dashed bg-background px-4 py-6 text-center text-sm text-muted-foreground">{t("walletNoTransactions")}</p>
         ) : (
           <ul className="flex flex-col divide-y rounded-2xl border bg-card shadow-xs">
-            {wallet.transactions.map((tx) => (
+            {(allTx ? wallet.transactions : wallet.transactions.slice(0, HISTORY_PREVIEW)).map((tx) => (
               <li key={tx.id} className="flex items-center gap-3 px-3.5 py-3 text-sm">
                 <span className="min-w-0 flex-1">
                   <span className="block font-medium">{t(`creditTx.${tx.type}`)}</span>
@@ -88,6 +93,7 @@ export function WalletPanel({ wallet: w }: { wallet: WalletApi }) {
             ))}
           </ul>
         )}
+        <ShowAllToggle total={wallet.transactions.length} expanded={allTx} onToggle={() => setAllTx((v) => !v)} />
       </section>
 
       {wallet.topups.length > 0 && (
@@ -96,7 +102,7 @@ export function WalletPanel({ wallet: w }: { wallet: WalletApi }) {
             {t("walletTopups")}
           </h3>
           <ul className="flex flex-col divide-y rounded-2xl border bg-card shadow-xs">
-            {wallet.topups.map((tp) => (
+            {(allTopups ? wallet.topups : wallet.topups.slice(0, HISTORY_PREVIEW)).map((tp) => (
               <li key={tp.id} className="flex items-center gap-3 px-3.5 py-3 text-sm">
                 <span className="min-w-0 flex-1">
                   <span className="block font-medium">
@@ -117,9 +123,21 @@ export function WalletPanel({ wallet: w }: { wallet: WalletApi }) {
               </li>
             ))}
           </ul>
+          <ShowAllToggle total={wallet.topups.length} expanded={allTopups} onToggle={() => setAllTopups((v) => !v)} />
         </section>
       )}
     </div>
+  );
+}
+
+function ShowAllToggle({ total, expanded, onToggle }: { total: number; expanded: boolean; onToggle: () => void }) {
+  const { t } = useTranslation();
+  if (total <= HISTORY_PREVIEW) return null;
+  return (
+    <Button variant="ghost" className="h-10 self-center rounded-xl text-sm" aria-expanded={expanded} onClick={onToggle}>
+      {expanded ? <ChevronUp aria-hidden /> : <ChevronDown aria-hidden />}
+      {expanded ? t("walletShowLess") : t("walletShowAll", { n: total })}
+    </Button>
   );
 }
 

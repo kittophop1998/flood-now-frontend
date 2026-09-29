@@ -1169,6 +1169,8 @@ export const th: Record<TranslationKey, string> = {
   walletHistory: "ประวัติเครดิต",
   walletNoTransactions: "ยังไม่มีรายการเครดิต",
   walletTopups: "รายการเติมเครดิต",
+  walletShowAll: "ดูทั้งหมด ({n})",
+  walletShowLess: "แสดงเฉพาะล่าสุด",
   walletLoadFailed: "โหลดเครดิตไม่สำเร็จ",
   "creditTx.welcome_credit": "เครดิตต้อนรับ",
   "creditTx.top_up": "เติมเครดิต",
