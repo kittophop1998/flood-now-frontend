@@ -6,7 +6,16 @@ import { CATEGORY_META } from "@/lib/report-meta";
 import type { ReportType } from "@/types/report";
 
 // Why the "sign in to use this feature" sheet opened (its explanation line).
-export type AuthReason = "react" | "sos" | "helper" | "savePlace" | "createEvent" | "reportCategory" | "generic";
+export type AuthReason =
+  | "react"
+  | "sos"
+  | "helper"
+  | "savePlace"
+  | "createEvent"
+  | "reportCategory"
+  | "serviceRequest"
+  | "provider"
+  | "generic";
 
 // Whether someone who isn't signed in may report this category. Mirrors the
 // API's guest-reportable rule (apps/api/internal/domain/report/report.go).

@@ -33,6 +33,8 @@ import { AnnouncementsView } from "@/components/views/announcements-view";
 import { DonateView } from "@/components/views/donate-view";
 import { EventsView } from "@/components/views/events-view";
 import { SyncView } from "@/components/views/sync-view";
+import { ServicesView, type ServiceRequestIntent } from "@/components/views/services-view";
+import { ProviderView } from "@/components/views/provider-view";
 import type { MapFocus, RouteOverlay } from "@/components/map/map-view";
 import { useViewportReports, type Viewport } from "@/features/reports/use-viewport-reports";
 import { useCreateReport } from "@/features/reports/use-create-report";
@@ -49,6 +51,7 @@ import { usePublicConfig } from "@/features/config/use-public-config";
 import { useSavedPlaces } from "@/features/places/use-saved-places";
 import { useRouteEvaluation } from "@/features/route/use-route-evaluation";
 import { useSos } from "@/features/sos/use-sos";
+import { useMyServiceRequests } from "@/features/services/use-customer-services";
 import { DEFAULT_LAYERS, useViewportLayers, type LayerFilters } from "@/features/layers/use-viewport-layers";
 import { useGistdaFlood } from "@/features/layers/use-gistda-flood";
 import { useDohCctv } from "@/features/layers/use-doh-cctv";
@@ -144,6 +147,13 @@ export default function HomePage() {
   const [moreScreen, setMoreScreen] = useState<MoreScreen>("menu");
   const sos = useSos(tab === "more" && (moreScreen === "sos" || moreScreen === "helper"));
   const routeEval = useRouteEvaluation();
+  // Local services (commercial) — only when the API has them on.
+  const localServices = config.local_services;
+  const customerServices = useMyServiceRequests(user != null && localServices != null, tab === "more" && moreScreen === "services");
+  const [serviceIntent, setServiceIntent] = useState<ServiceRequestIntent | null>(null);
+  // Back from Stripe Checkout: /?topup=<id>[&topup_cancelled=1]. The wallet
+  // then asks the API whether the webhook has confirmed it.
+  const [returnedTopup, setReturnedTopup] = useState<{ id: string; cancelled: boolean } | null>(null);
 
   const [mode, setMode] = useState<Mode>({ kind: "browse" });
   const [draft, setDraft] = useState<ReportDraft | null>(null);
@@ -226,6 +236,19 @@ export default function HomePage() {
   const closeReport = useCallback(() => {
     setSelected(null);
     setReportParam(null);
+  }, []);
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const id = params.get("topup");
+    if (!id) return;
+    setReturnedTopup({ id, cancelled: params.get("topup_cancelled") === "1" });
+    setTab("more");
+    setMoreScreen("provider");
+    const url = new URL(window.location.href);
+    url.searchParams.delete("topup");
+    url.searchParams.delete("topup_cancelled");
+    window.history.replaceState(null, "", url);
   }, []);
 
   // Shared links: /?report=<id> opens that report over the map.
@@ -527,7 +550,13 @@ export default function HomePage() {
   const moreHidden = picking;
   const back = () => setMoreScreen("menu");
   // The donate screen exists only while the API reports a valid config.
-  const screen: MoreScreen = moreScreen === "donate" && !config.donation ? "menu" : moreScreen;
+  const screen: MoreScreen =
+    (moreScreen === "donate" && !config.donation) || ((moreScreen === "services" || moreScreen === "provider") && !localServices) ? "menu" : moreScreen;
+
+  function requestService(intent: ServiceRequestIntent) {
+    setServiceIntent(intent);
+    openMore("services");
+  }
 
   return (
     <main
@@ -858,6 +887,8 @@ export default function HomePage() {
           locating={locating}
           onLocate={requestLocation}
           onSelect={openReport}
+          servicesEnabled={localServices != null}
+          onRequestService={(category, provider) => requestService({ category, providerName: provider?.display_name ?? null })}
         />
       )}
       {tab === "alerts" && (
@@ -871,7 +902,13 @@ export default function HomePage() {
         />
       )}
       {tab === "more" && screen === "menu" && (
-        <MoreView onOpen={openMore} donationAvailable={config.donation != null} outboxCount={outboxCount} hidden={moreHidden} />
+        <MoreView
+          onOpen={openMore}
+          donationAvailable={config.donation != null}
+          localServices={localServices != null}
+          outboxCount={outboxCount}
+          hidden={moreHidden}
+        />
       )}
       {tab === "more" && screen === "saved" && (
         <SavedPlacesView
@@ -912,6 +949,36 @@ export default function HomePage() {
           locationBlocked={geo.status === "denied"}
           onLocate={requestLocation}
           onBack={back}
+          hidden={moreHidden}
+          onOpenProvider={localServices ? () => openMore("provider") : undefined}
+        />
+      )}
+      {tab === "more" && screen === "services" && localServices && (
+        <ServicesView
+          services={customerServices}
+          intent={serviceIntent}
+          onIntentConsumed={() => setServiceIntent(null)}
+          origin={userLocation ?? mapCenter}
+          userLocation={userLocation}
+          onUseMyLocation={myLocation}
+          onOpenSos={() => openMore("sos")}
+          onBack={() => {
+            setServiceIntent(null);
+            back();
+          }}
+          hidden={moreHidden}
+        />
+      )}
+      {tab === "more" && screen === "provider" && localServices && (
+        <ProviderView
+          config={localServices}
+          returnedTopup={returnedTopup}
+          userLocation={userLocation}
+          onUseMyLocation={myLocation}
+          onBack={() => {
+            setReturnedTopup(null);
+            back();
+          }}
           hidden={moreHidden}
         />
       )}

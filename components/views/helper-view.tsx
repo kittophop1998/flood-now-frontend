@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { CircleAlert, Handshake, Loader2, LocateFixed, Lock, Navigation, Phone, SearchX, UsersRound } from "lucide-react";
+import { ChevronRight, CircleAlert, Handshake, Loader2, LocateFixed, Lock, Navigation, Phone, SearchX, Store, UsersRound } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -22,7 +22,8 @@ import { CAPABILITIES, HELPER_RADII_M, type Capability, type HelperProfile, type
 
 // Helper mode: opt in with capabilities + radius, see waiting SOS requests
 // you can answer (matched by capability + distance, redacted until
-// accepted), accept one and update its status.
+// accepted), accept one and update its status. Volunteer only — free
+// community help; businesses register separately as service providers.
 export function HelperView({
   sos,
   userLocation,
@@ -30,6 +31,7 @@ export function HelperView({
   onLocate,
   onBack,
   hidden,
+  onOpenProvider,
 }: {
   sos: SosApi;
   userLocation: LatLng | null;
@@ -37,6 +39,8 @@ export function HelperView({
   onLocate: () => void;
   onBack: () => void;
   hidden?: boolean;
+  // Local services on: link to provider onboarding (never mixed in here).
+  onOpenProvider?: () => void;
 }) {
   const { t } = useTranslation();
   const helper = useHelper(userLocation);
@@ -89,6 +93,23 @@ export function HelperView({
             <NearbyList helper={helper} sos={sos} />
           )}
         </section>
+      )}
+
+      {onOpenProvider && (
+        <button
+          type="button"
+          onClick={onOpenProvider}
+          className="flex min-h-14 items-center gap-3 rounded-2xl border bg-card p-3.5 text-left shadow-xs hover:bg-muted/60 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+        >
+          <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-accent text-primary">
+            <Store className="size-5" aria-hidden />
+          </span>
+          <span className="min-w-0 flex-1">
+            <span className="block font-medium">{t("helperAsBusiness")}</span>
+            <span className="block text-sm text-muted-foreground">{t("helperAsBusinessHint")}</span>
+          </span>
+          <ChevronRight className="size-5 shrink-0 text-muted-foreground" aria-hidden />
+        </button>
       )}
     </ViewShell>
   );

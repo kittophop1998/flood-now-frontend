@@ -18,11 +18,14 @@ import {
   Route,
   ShieldAlert,
   Siren,
+  Store,
+  Wrench,
   type LucideIcon,
 } from "lucide-react";
 import { LocaleToggle } from "@/components/locale-toggle";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/features/auth/auth-provider";
+import { useMyProvider } from "@/features/services/use-provider";
 import { CategoryIcon, SeverityBadge, StatusBadge } from "@/components/report/report-badges";
 import { ViewShell } from "@/components/views/view-shell";
 import { categoryLabel } from "@/lib/report-meta";
@@ -31,9 +34,22 @@ import type { TranslationKey } from "@/lib/i18n/locale";
 import { cn } from "@/lib/utils";
 import { REPORT_STATUSES, REPORT_TYPES, SEVERITIES } from "@/types/report";
 
-export type MoreScreen = "menu" | "saved" | "watch" | "route" | "sos" | "helper" | "places" | "announcements" | "events" | "donate" | "sync";
+export type MoreScreen =
+  | "menu"
+  | "saved"
+  | "watch"
+  | "route"
+  | "sos"
+  | "helper"
+  | "places"
+  | "announcements"
+  | "events"
+  | "donate"
+  | "sync"
+  | "services"
+  | "provider";
 
-const MENU: { id: Exclude<MoreScreen, "menu" | "sos" | "donate" | "sync">; icon: LucideIcon; label: TranslationKey; hint: TranslationKey }[] = [
+const MENU: { id: Exclude<MoreScreen, "menu" | "sos" | "donate" | "sync" | "services" | "provider">; icon: LucideIcon; label: TranslationKey; hint: TranslationKey }[] = [
   { id: "saved", icon: Bookmark, label: "savedPlacesTitle", hint: "savedPlacesHint" },
   { id: "watch", icon: Radar, label: "watchTitle", hint: "watchHint" },
   { id: "route", icon: Route, label: "routeTitle", hint: "routeHint" },
@@ -48,16 +64,21 @@ const MENU: { id: Exclude<MoreScreen, "menu" | "sos" | "donate" | "sync">; icon:
 export function MoreView({
   onOpen,
   donationAvailable,
+  localServices,
   outboxCount,
   hidden,
 }: {
   onOpen: (screen: MoreScreen) => void;
   donationAvailable: boolean;
+  // Local services are on in the API (/config/public).
+  localServices: boolean;
   outboxCount: number;
   hidden?: boolean;
 }) {
   const { t } = useTranslation();
   const { user, openSignIn, signOut } = useAuth();
+  // Only to label the provider entry ("register" vs "provider mode").
+  const myProvider = useMyProvider(localServices && user != null);
   return (
     <ViewShell title={t("moreTitle")} subtitle={t("appTagline")} hidden={hidden}>
       <section aria-label={t("accountTitle")} className="flex items-center gap-3 rounded-2xl border bg-card p-4 shadow-xs">
@@ -107,6 +128,24 @@ export function MoreView({
         <ChevronRight className="size-5 shrink-0" aria-hidden />
       </button>
 
+      {/* Commercial local services: deliberately not red — this is not SOS. */}
+      {localServices && (
+        <button
+          type="button"
+          onClick={() => onOpen("services")}
+          className="flex min-h-16 items-center gap-3 rounded-2xl bg-primary p-4 text-left text-primary-foreground shadow-sm transition-colors hover:bg-primary/90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+        >
+          <span className="flex size-11 shrink-0 items-center justify-center rounded-full bg-white/15">
+            <Wrench className="size-6" aria-hidden />
+          </span>
+          <span className="min-w-0 flex-1">
+            <span className="block text-base font-bold">{t("servicesTitle")}</span>
+            <span className="block text-sm opacity-85">{t("servicesSubtitle")}</span>
+          </span>
+          <ChevronRight className="size-5 shrink-0" aria-hidden />
+        </button>
+      )}
+
       <nav aria-label={t("moreTitle")} className="overflow-hidden rounded-2xl border bg-card shadow-xs">
         <ul className="divide-y">
           {MENU.map((item) => (
@@ -117,6 +156,14 @@ export function MoreView({
           )}
           {donationAvailable && (
             <MenuRow icon={Heart} label={t("donateTitle")} hint={t("donateHint")} onClick={() => onOpen("donate")} accent />
+          )}
+          {localServices && (
+            <MenuRow
+              icon={Store}
+              label={t("providerMenuTitle")}
+              hint={myProvider.provider ? t("providerMenuMode") : t("providerMenuRegister")}
+              onClick={() => onOpen("provider")}
+            />
           )}
         </ul>
       </nav>

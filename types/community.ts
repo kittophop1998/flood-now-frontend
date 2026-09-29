@@ -2,6 +2,7 @@
 // important places, announcements, moderation and public config. Keep in
 // sync with the API contract by hand, like types/report.ts.
 import type { Report, ReportType, Severity, Vehicle } from "@/types/report";
+import type { LocalServicesConfig } from "@/types/local-services";
 
 export type LatLng = { latitude: number; longitude: number };
 
@@ -337,6 +338,9 @@ export interface DonationConfig {
 
 export interface PublicConfig {
   donation: DonationConfig | null;
+  // Local services (commercial providers, service requests, provider
+  // credit); null when the API has them off.
+  local_services: LocalServicesConfig | null;
   // True when the official GISTDA flood layer is configured on the API.
   gistda_flood: boolean;
   // True when the official DOH highway camera layer is enabled on the API.
