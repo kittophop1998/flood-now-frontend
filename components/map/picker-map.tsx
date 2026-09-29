@@ -2,15 +2,10 @@
 
 import { useEffect, useRef } from "react";
 import Map, { Marker, NavigationControl, type MapRef } from "react-map-gl/maplibre";
-import { setWorkerUrl } from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
 import { CenterPin } from "@/components/map/center-pin";
+import { MAP_CONTAINER_STYLE, MAP_STYLE_URL } from "@/lib/map-config";
 import type { LatLng } from "@/types/community";
-
-const OPENFREEMAP_STYLE = "https://tiles.openfreemap.org/styles/liberty";
-
-// Kept in sync with the worker path set up in components/map/map-view.tsx.
-setWorkerUrl("/maplibre-gl-worker.js");
 
 // Bare map for choosing a point, with no report/place layers. Used two ways:
 // the admin coordinate picker pans it under a fixed center pin its dialog
@@ -58,8 +53,8 @@ export function PickerMap({
       onClick={onPick && ((e) => onPick({ latitude: e.lngLat.lat, longitude: e.lngLat.lng }))}
       onLoad={onLoad}
       onError={onError}
-      mapStyle={OPENFREEMAP_STYLE}
-      style={{ width: "100%", height: "100%" }}
+      mapStyle={MAP_STYLE_URL}
+      style={MAP_CONTAINER_STYLE}
       attributionControl={false}
     >
       <NavigationControl position="bottom-right" showCompass={false} />

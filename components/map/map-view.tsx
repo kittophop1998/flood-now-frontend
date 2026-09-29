@@ -2,7 +2,6 @@
 
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Map, { AttributionControl, Layer, Marker, NavigationControl, Source, type MapLayerMouseEvent, type MapRef } from "react-map-gl/maplibre";
-import { setWorkerUrl } from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
 import { ReportMarker } from "@/components/map/report-marker";
 import { AnnouncementMarker, CctvClusterMarker, CctvMarker, EventMarker, ImportantPlaceMarker, SavedPlaceMarker } from "@/components/map/overlay-markers";
@@ -11,6 +10,7 @@ import { CenterPin } from "@/components/map/center-pin";
 import { clusterPoints, CLUSTER_MAX_ZOOM } from "@/lib/cluster";
 import { GISTDA_FLOOD_META, ROUTE_RISK_META } from "@/lib/community-meta";
 import { circleRing } from "@/lib/distance";
+import { MAP_CONTAINER_STYLE, MAP_STYLE_URL } from "@/lib/map-config";
 import { isRecentlyUpdated } from "@/lib/map-filters";
 import { severityRank } from "@/lib/report-meta";
 import { currentStatus } from "@/lib/report-status";
@@ -19,14 +19,6 @@ import { useTranslation } from "@/lib/i18n/locale-context";
 import type { Viewport } from "@/features/reports/use-viewport-reports";
 import type { Report } from "@/types/report";
 import type { Announcement, CctvCamera, CommunityEvent, EvaluatedRoute, FloodAreaCollection, ImportantPlace, SavedPlace } from "@/types/community";
-
-const OPENFREEMAP_STYLE = "https://tiles.openfreemap.org/styles/liberty";
-
-// Turbopack can't statically resolve maplibre-gl's internal
-// `new URL(`./${file}`, import.meta.url)` worker lookup, so the map silently
-// fails to render ("Worker failed to load"). Point it at a self-hosted copy
-// instead (kept in sync with the maplibre-gl version in package.json).
-setWorkerUrl("/maplibre-gl-worker.js");
 
 type LatLng = { latitude: number; longitude: number };
 
@@ -259,8 +251,8 @@ export const MapView = memo(function MapView({
         onMoveEnd={emitViewport}
         onClick={handleClick}
         interactiveLayerIds={floodAreas && !pickMode ? [FLOOD_FILL_LAYER] : undefined}
-        mapStyle={OPENFREEMAP_STYLE}
-        style={{ width: "100%", height: "100%" }}
+        mapStyle={MAP_STYLE_URL}
+        style={MAP_CONTAINER_STYLE}
         attributionControl={false}
       >
         <AttributionControl position="bottom-left" compact />
