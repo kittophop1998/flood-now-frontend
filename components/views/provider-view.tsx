@@ -51,7 +51,6 @@ const TABS: ProviderTab[] = ["requests", "offers", "jobs", "wallet", "profile"];
 export function ProviderView({
   config,
   initialTab,
-  returnedTopup,
   userLocation,
   onUseMyLocation,
   onBack,
@@ -59,8 +58,6 @@ export function ProviderView({
 }: {
   config: LocalServicesConfig;
   initialTab?: ProviderTab;
-  // Back from Stripe Checkout (?topup=<id>): confirm it via the API.
-  returnedTopup: { id: string; cancelled: boolean } | null;
   userLocation: LatLng | null;
   onUseMyLocation: () => Promise<LatLng | null>;
   onBack: () => void;
@@ -105,13 +102,7 @@ export function ProviderView({
           onCancel={() => setEditing(false)}
         />
       ) : (
-        <Dashboard
-          me={me}
-          config={config}
-          initialTab={returnedTopup ? "wallet" : initialTab}
-          returnedTopup={returnedTopup}
-          onEdit={() => setEditing(true)}
-        />
+        <Dashboard me={me} config={config} initialTab={initialTab} onEdit={() => setEditing(true)} />
       )}
     </ViewShell>
   );
@@ -149,13 +140,11 @@ function Dashboard({
   me,
   config,
   initialTab,
-  returnedTopup,
   onEdit,
 }: {
   me: ReturnType<typeof useMyProvider>;
   config: LocalServicesConfig;
   initialTab?: ProviderTab;
-  returnedTopup: { id: string; cancelled: boolean } | null;
   onEdit: () => void;
 }) {
   const { t } = useTranslation();
@@ -163,7 +152,7 @@ function Dashboard({
   const [tab, setTab] = useState<ProviderTab>(initialTab ?? "requests");
   const [toggling, setToggling] = useState(false);
   const work = useProviderWork(true, p.available && p.status === "active");
-  const wallet = useWallet(true, returnedTopup?.id ?? null);
+  const wallet = useWallet(true);
   const selections = work.offers.filter((o) => o.status === "selected");
   const activeJobs = work.jobs.filter((j) => j.match.status === "active");
 
@@ -253,7 +242,7 @@ function Dashboard({
       {tab === "requests" && <RequestsTab available={p.available} work={work} />}
       {tab === "offers" && <OffersTab work={work} />}
       {tab === "jobs" && <JobsTab work={work} onChanged={refreshAll} />}
-      {tab === "wallet" && <WalletPanel wallet={wallet} cancelledReturn={returnedTopup?.cancelled ?? false} />}
+      {tab === "wallet" && <WalletPanel wallet={wallet} />}
       {tab === "profile" && (
         <section className="flex flex-col gap-3 rounded-2xl border bg-card p-4 text-sm shadow-xs">
           <p className="text-muted-foreground">{p.categories.map((c) => t(`serviceCategory.${c}`)).join(" · ")}</p>

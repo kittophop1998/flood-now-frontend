@@ -3,6 +3,7 @@
 // lib/community-meta.ts. Local services use the normal navy/primary look;
 // red stays reserved for SOS/emergency.
 import {
+  Ban,
   BatteryCharging,
   Bus,
   CircleCheck,
@@ -11,6 +12,7 @@ import {
   Disc,
   Hammer,
   Hourglass,
+  RotateCcw,
   Navigation,
   ShowerHead,
   Store,
@@ -129,12 +131,12 @@ export const CREDIT_TX_TONE: Record<CreditTxType, Tone> = {
   admin_adjustment: "muted",
 };
 
-export const TOPUP_STATUS_TONE: Record<TopupStatus, Tone> = {
-  pending: "warn",
-  paid: "ok",
-  failed: "danger",
-  expired: "muted",
-  refunded: "muted",
+export const TOPUP_STATUS_META: Record<TopupStatus, { icon: LucideIcon; tone: Tone }> = {
+  pending: { icon: Hourglass, tone: "warn" },
+  paid: { icon: CircleCheck, tone: "ok" },
+  failed: { icon: CircleX, tone: "danger" },
+  expired: { icon: Ban, tone: "muted" },
+  refunded: { icon: RotateCcw, tone: "muted" },
 };
 
 // "+100" / "−20" for a credit amount.

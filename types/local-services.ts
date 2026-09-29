@@ -259,6 +259,8 @@ export interface Topup {
   status: TopupStatus;
   paid_at: string | null;
   created_at: string;
+  // The PromptPay QR to scan — only while the top-up is pending.
+  promptpay: { qr_data: string; qr_image_url: string | null } | null;
 }
 
 export interface TopupPackage {

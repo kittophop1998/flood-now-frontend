@@ -151,9 +151,6 @@ export default function HomePage() {
   const localServices = config.local_services;
   const customerServices = useMyServiceRequests(user != null && localServices != null, tab === "more" && moreScreen === "services");
   const [serviceIntent, setServiceIntent] = useState<ServiceRequestIntent | null>(null);
-  // Back from Stripe Checkout: /?topup=<id>[&topup_cancelled=1]. The wallet
-  // then asks the API whether the webhook has confirmed it.
-  const [returnedTopup, setReturnedTopup] = useState<{ id: string; cancelled: boolean } | null>(null);
 
   const [mode, setMode] = useState<Mode>({ kind: "browse" });
   const [draft, setDraft] = useState<ReportDraft | null>(null);
@@ -236,19 +233,6 @@ export default function HomePage() {
   const closeReport = useCallback(() => {
     setSelected(null);
     setReportParam(null);
-  }, []);
-
-  useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const id = params.get("topup");
-    if (!id) return;
-    setReturnedTopup({ id, cancelled: params.get("topup_cancelled") === "1" });
-    setTab("more");
-    setMoreScreen("provider");
-    const url = new URL(window.location.href);
-    url.searchParams.delete("topup");
-    url.searchParams.delete("topup_cancelled");
-    window.history.replaceState(null, "", url);
   }, []);
 
   // Shared links: /?report=<id> opens that report over the map.
@@ -972,13 +956,9 @@ export default function HomePage() {
       {tab === "more" && screen === "provider" && localServices && (
         <ProviderView
           config={localServices}
-          returnedTopup={returnedTopup}
           userLocation={userLocation}
           onUseMyLocation={myLocation}
-          onBack={() => {
-            setReturnedTopup(null);
-            back();
-          }}
+          onBack={back}
           hidden={moreHidden}
         />
       )}

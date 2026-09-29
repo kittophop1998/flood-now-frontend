@@ -178,16 +178,16 @@ export function useProviderWork(enabled: boolean, available: boolean) {
 
 export type ProviderWorkApi = ReturnType<typeof useProviderWork>;
 
-// The provider's credit wallet. After a Stripe redirect, `returnedTopupId`
-// is polled until the webhook has marked it paid (or it failed) — the
-// redirect itself proves nothing.
-export function useWallet(enabled: boolean, returnedTopupId: string | null) {
+// The provider's credit wallet and the PromptPay top-up on screen. A
+// shown QR is polled until the Stripe webhook has decided (paid, or
+// failed/expired) — nothing on this side ever marks it paid.
+export function useWallet(enabled: boolean) {
   const [wallet, setWallet] = useState<Wallet | null>(null);
   const [status, setStatus] = useState<"idle" | "loading" | "ready" | "error">("idle");
-  const [returned, setReturned] = useState<Topup | null>(null);
-  const [confirming, setConfirming] = useState(returnedTopupId != null);
+  // The top-up whose QR is shown (pending), or its outcome.
+  const [payment, setPayment] = useState<Topup | null>(null);
   const [startError, setStartError] = useState<string | null>(null);
-  const [starting, setStarting] = useState<string | null>(null);
+  const [starting, setStarting] = useState(false);
 
   const load = useCallback(async (signal?: AbortSignal) => {
     try {
@@ -206,49 +206,59 @@ export function useWallet(enabled: boolean, returnedTopupId: string | null) {
     return () => controller.abort();
   }, [enabled, load]);
 
+  const paymentId = payment?.id ?? null;
+  const waiting = payment?.status === "pending";
   useEffect(() => {
-    if (!enabled || !returnedTopupId) return;
+    if (!paymentId || !waiting) return;
     let stopped = false;
-    let tries = 0;
     let timer: ReturnType<typeof setTimeout> | undefined;
     const poll = async () => {
-      tries++;
       try {
-        const t = await providerService.topup(returnedTopupId);
+        const t = await providerService.topup(paymentId);
         if (stopped) return;
-        setReturned(t);
-        if (t.status !== "pending" || tries >= 40) {
-          setConfirming(false);
+        if (t.status !== "pending") {
+          setPayment(t);
           await load();
           return;
         }
       } catch {
-        if (tries >= 40) {
-          setConfirming(false);
-          return;
-        }
+        // offline blip: keep polling
       }
       if (!stopped) timer = setTimeout(poll, 3000);
     };
-    timer = setTimeout(poll, 0);
+    timer = setTimeout(poll, 3000);
     return () => {
       stopped = true;
       clearTimeout(timer);
     };
-  }, [enabled, returnedTopupId, load]);
+  }, [paymentId, waiting, load]);
 
-  const startTopup = useCallback(async (packageId: string) => {
-    setStartError(null);
-    setStarting(packageId);
-    try {
-      const { checkout_url } = await providerService.startTopup(packageId);
-      // Off to Stripe's hosted checkout; we come back to /?topup=<id>.
-      window.location.assign(checkout_url);
-    } catch (err) {
-      setStartError(apiMessage(err) ?? "network");
-      setStarting(null);
-    }
-  }, []);
+  const startTopup = useCallback(
+    async (packageId: string) => {
+      setStartError(null);
+      setStarting(true);
+      try {
+        setPayment(await providerService.startTopup(packageId));
+        load();
+      } catch (err) {
+        setStartError(apiMessage(err) ?? "network");
+      } finally {
+        setStarting(false);
+      }
+    },
+    [load],
+  );
 
-  return { wallet, status, reload: () => load(), returned, confirming, startTopup, starting, startError };
+  return {
+    wallet,
+    status,
+    reload: () => load(),
+    payment,
+    // Show an unpaid QR again (from the top-up history).
+    resume: (t: Topup) => setPayment(t),
+    closePayment: () => setPayment(null),
+    startTopup,
+    starting,
+    startError,
+  };
 }

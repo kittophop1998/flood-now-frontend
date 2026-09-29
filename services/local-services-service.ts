@@ -71,8 +71,9 @@ export const providerService = {
   reject: (offerId: string) => apiClient.post<void>(`/api/v1/provider/offers/${offerId}/reject`),
   jobs: (signal?: AbortSignal) => apiClient.get<{ jobs: ProviderJob[] }>("/api/v1/provider/jobs", signal).then((r) => r.jobs),
   wallet: (signal?: AbortSignal) => apiClient.get<Wallet>("/api/v1/provider/wallet", signal),
-  // Stripe Checkout for a server-defined package; credit arrives only via the webhook.
+  // A PromptPay QR (via Stripe) for a server-defined package; credit arrives
+  // only via the verified webhook.
   startTopup: (packageId: string) =>
-    apiClient.post<{ topup: Topup; checkout_url: string }>("/api/v1/provider/wallet/topups", { package_id: packageId }),
+    apiClient.post<{ topup: Topup }>("/api/v1/provider/wallet/topups", { package_id: packageId }).then((r) => r.topup),
   topup: (id: string, signal?: AbortSignal) => apiClient.get<Topup>(`/api/v1/provider/wallet/topups/${id}`, signal),
 };
