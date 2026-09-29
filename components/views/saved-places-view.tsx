@@ -8,6 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { AreaLevelBadge, AreaTopLine, StaleDataNote } from "@/components/community/badges";
 import { LocationField, type LocationValue } from "@/components/community/location-field";
+import { MapLocationPicker } from "@/components/map/map-location-picker";
 import { EmptyState, ViewShell } from "@/components/views/view-shell";
 import { SignInCard } from "@/components/auth/sign-in-card";
 import { useAuth } from "@/features/auth/auth-provider";
@@ -26,8 +27,6 @@ const optionClass =
   "inline-flex min-h-11 items-center justify-center gap-1.5 rounded-xl border px-3 text-sm font-medium transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring";
 const on = "border-primary bg-accent text-primary";
 const off = "bg-background hover:bg-muted";
-
-type PickFn = (title: string, onPick: (p: LatLng) => void) => void;
 
 interface Draft {
   id: string | null;
@@ -60,7 +59,7 @@ export function SavedPlacesView({
   onBack,
   hidden,
   onUseMyLocation,
-  onPick,
+  userLocation,
   onShowOnMap,
   onRouteFrom,
   onRouteTo,
@@ -69,7 +68,8 @@ export function SavedPlacesView({
   onBack: () => void;
   hidden?: boolean;
   onUseMyLocation: () => Promise<LatLng | null>;
-  onPick: PickFn;
+  // Where the map picker starts when the place has no location yet.
+  userLocation: LatLng | null;
   onShowOnMap: (place: SavedPlace) => void;
   onRouteFrom: (place: SavedPlace) => void;
   onRouteTo: (place: SavedPlace) => void;
@@ -82,6 +82,7 @@ export function SavedPlacesView({
   const [errors, setErrors] = useState<{ name?: string; location?: string }>({});
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
   const [pendingId, setPendingId] = useState<string | null>(null);
+  const [picker, setPicker] = useState<{ search: boolean } | null>(null);
 
   async function save() {
     if (!draft) return;
@@ -167,10 +168,23 @@ export function SavedPlacesView({
             value={draft.location}
             onChange={(location) => setDraft({ ...draft, location })}
             onUseMyLocation={onUseMyLocation}
-            onPickOnMap={() => onPick(t("pickPlaceTitle"), (p) => setDraft((d) => (d ? { ...d, location: p } : d)))}
-            searchable
+            onPickOnMap={() => setPicker({ search: false })}
+            onSearch={() => setPicker({ search: true })}
             invalid={!!errors.location}
           />
+          {picker && (
+            <MapLocationPicker
+              title={t("pickPlaceTitle")}
+              value={draft.location}
+              initialCenter={userLocation}
+              autoFocusSearch={picker.search}
+              onCancel={() => setPicker(null)}
+              onConfirm={(location) => {
+                setDraft((d) => (d ? { ...d, location } : d));
+                setPicker(null);
+              }}
+            />
+          )}
           {errors.location && <p className="-mt-2 text-sm text-destructive">{errors.location}</p>}
 
           <fieldset className="flex flex-col gap-2">

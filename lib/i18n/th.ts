@@ -274,6 +274,9 @@ export const th: Record<TranslationKey, string> = {
   noneAtPin: "ยังไม่มีรายงานบริเวณนี้",
   nearbyAtPinFailed: "ตรวจสอบรายงานบริเวณนี้ไม่สำเร็จ",
   locatingAddress: "กำลังหาที่อยู่…",
+  tapMapHint: "แตะบนแผนที่หรือค้นหาเพื่อปักหมุด",
+  confirmLocation: "ตกลง",
+  pickerMapFailed: "โหลดแผนที่ไม่สำเร็จ ยังค้นหาหรือใช้ตำแหน่งของฉันได้",
 
   nearbyTitle: "ใกล้ฉัน",
   nearbyAroundYou: "รอบตำแหน่งของคุณ",

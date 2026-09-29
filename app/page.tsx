@@ -879,7 +879,7 @@ export default function HomePage() {
           onBack={back}
           hidden={moreHidden}
           onUseMyLocation={myLocation}
-          onPick={requestPick}
+          userLocation={userLocation}
           onShowOnMap={showSavedPlace}
           onRouteFrom={(p) => planRoute("origin", p)}
           onRouteTo={(p) => planRoute("destination", p)}

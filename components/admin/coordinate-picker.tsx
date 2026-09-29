@@ -13,7 +13,7 @@ import { cn } from "@/lib/utils";
 
 type LatLng = { latitude: number; longitude: number };
 
-const PickerMap = dynamic(() => import("@/components/admin/coordinate-picker-map").then((m) => m.CoordinatePickerMap), {
+const PickerMap = dynamic(() => import("@/components/map/picker-map").then((m) => m.PickerMap), {
   ssr: false,
   loading: () => <div className="h-64 w-full animate-pulse rounded-2xl bg-muted" />,
 });

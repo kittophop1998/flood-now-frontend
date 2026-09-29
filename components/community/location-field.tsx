@@ -26,6 +26,7 @@ export function LocationField({
   onPickOnMap,
   savedPlaces,
   searchable,
+  onSearch,
   invalid,
 }: {
   label: string;
@@ -36,6 +37,8 @@ export function LocationField({
   onPickOnMap: () => void;
   savedPlaces?: SavedPlace[];
   searchable?: boolean;
+  // Search somewhere else (e.g. MapLocationPicker) instead of inline.
+  onSearch?: () => void;
   invalid?: boolean;
 }) {
   const { t } = useTranslation();
@@ -107,7 +110,14 @@ export function LocationField({
           })}
         </div>
       )}
+      {onSearch && (
+        <Button type="button" variant="ghost" className="h-11 justify-start rounded-xl text-primary" onClick={onSearch}>
+          <Search aria-hidden />
+          {t("searchAPlace")}
+        </Button>
+      )}
       {searchable &&
+        !onSearch &&
         (searchOpen ? (
           <div className="flex flex-col gap-1.5">
             <form

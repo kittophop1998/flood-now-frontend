@@ -284,6 +284,9 @@ export const en = {
   noneAtPin: "No active reports right here",
   nearbyAtPinFailed: "Couldn't check reports here",
   locatingAddress: "Finding address…",
+  tapMapHint: "Tap the map or search to drop a pin",
+  confirmLocation: "OK",
+  pickerMapFailed: "The map couldn't load. You can still search or use your location.",
 
   // Nearby view
   nearbyTitle: "Nearby",
