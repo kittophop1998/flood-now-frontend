@@ -3,7 +3,6 @@
 import { toast } from "sonner";
 import {
   Bookmark,
-  CalendarDays,
   ChevronRight,
   CircleUserRound,
   LogOut,
@@ -54,7 +53,6 @@ const MENU: { id: Exclude<MoreScreen, "menu" | "sos" | "donate" | "sync" | "serv
   { id: "saved", icon: Bookmark, label: "savedPlacesTitle", hint: "savedPlacesHint" },
   { id: "watch", icon: Radar, label: "watchTitle", hint: "watchHint" },
   { id: "route", icon: Route, label: "routeTitle", hint: "routeHint" },
-  { id: "events", icon: CalendarDays, label: "eventsTitle", hint: "eventsHint" },
   { id: "helper", icon: Handshake, label: "helperTitle", hint: "helperHint" },
   { id: "places", icon: Hospital, label: "importantPlacesTitle", hint: "importantPlacesHint" },
   { id: "announcements", icon: Megaphone, label: "announcementsTitle", hint: "announcementsHint" },
@@ -181,8 +179,8 @@ export function MoreView({
               icon={Store}
               label={t("providerMenuTitle")}
               hint={myProvider.provider ? t("providerMenuMode") : t("providerMenuRegister")}
-              locked={!user}
-              // Provider mode is signed-in only: guests sign in first, then land in it.
+              // Temporarily disabled: the provider entry point is switched off for now.
+              disabled
               onClick={() => requireAuth("provider", () => onOpen("provider"))}
             />
           )}
