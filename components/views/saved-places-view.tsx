@@ -10,7 +10,6 @@ import { AreaLevelBadge, AreaTopLine, StaleDataNote } from "@/components/communi
 import { LocationField, type LocationValue } from "@/components/community/location-field";
 import { MapLocationPicker } from "@/components/map/map-location-picker";
 import { EmptyState, ViewShell } from "@/components/views/view-shell";
-import { SignInCard } from "@/components/auth/sign-in-card";
 import { useAuth } from "@/features/auth/auth-provider";
 import { useNow } from "@/features/common/use-now";
 import type { SavedPlacesApi } from "@/features/places/use-saved-places";
@@ -271,9 +270,6 @@ export function SavedPlacesView({
             </Button>
           }
         />
-      )}
-      {places.status === "guest" && !draft && (
-        <SignInCard reason="savePlace" title={t("savedPlacesSignInTitle")} hint={t("savedPlacesSignInHint")} />
       )}
       {places.status === "ready" && places.places.length === 0 && !draft && (
         <EmptyState icon={<Bookmark />} title={t("noSavedPlaces")} hint={t("noSavedPlacesHint")} />

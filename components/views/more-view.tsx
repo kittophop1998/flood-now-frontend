@@ -134,23 +134,41 @@ export function MoreView({
         <button
           type="button"
           onClick={() => onOpen("services")}
-          className="flex min-h-16 items-center gap-3 rounded-2xl bg-primary p-4 text-left text-primary-foreground shadow-sm transition-colors hover:bg-primary/90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+          disabled={!user}
+          className="flex min-h-16 items-center gap-3 rounded-2xl bg-primary p-4 text-left text-primary-foreground shadow-sm transition-colors hover:bg-primary/90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:bg-primary"
         >
           <span className="flex size-11 shrink-0 items-center justify-center rounded-full bg-white/15">
             <Wrench className="size-6" aria-hidden />
           </span>
           <span className="min-w-0 flex-1">
-            <span className="block text-base font-bold">{t("servicesTitle")}</span>
+            <span className="flex items-center gap-1.5 text-base font-bold">
+              {t("servicesTitle")}
+              {!user && (
+                <span className="inline-flex items-center gap-1 rounded-full bg-white/20 px-2 py-0.5 text-xs font-medium">
+                  <Lock className="size-3" aria-hidden />
+                  {t("authRequiredLabel")}
+                </span>
+              )}
+            </span>
             <span className="block text-sm opacity-85">{t("servicesSubtitle")}</span>
           </span>
-          <ChevronRight className="size-5 shrink-0" aria-hidden />
+          {user ? <ChevronRight className="size-5 shrink-0" aria-hidden /> : <Lock className="size-5 shrink-0" aria-hidden />}
         </button>
       )}
 
       <nav aria-label={t("moreTitle")} className="overflow-hidden rounded-2xl border bg-card shadow-xs">
         <ul className="divide-y">
           {MENU.map((item) => (
-            <MenuRow key={item.id} icon={item.icon} label={t(item.label)} hint={t(item.hint)} onClick={() => onOpen(item.id)} />
+            <MenuRow
+              key={item.id}
+              icon={item.icon}
+              label={t(item.label)}
+              hint={t(item.hint)}
+              // Saved places are signed-in only: guests see it locked and can't open it.
+              locked={item.id === "saved" && !user}
+              disabled={item.id === "saved" && !user}
+              onClick={() => onOpen(item.id)}
+            />
           ))}
           {outboxCount > 0 && (
             <MenuRow icon={CloudUpload} label={t("syncTitle")} hint={t("syncPendingCount", { n: outboxCount })} onClick={() => onOpen("sync")} />
@@ -244,6 +262,7 @@ function MenuRow({
   onClick,
   accent,
   locked,
+  disabled,
 }: {
   icon: LucideIcon;
   label: string;
@@ -252,6 +271,8 @@ function MenuRow({
   accent?: boolean;
   // Signed-in only entry, shown to a guest.
   locked?: boolean;
+  // Not clickable at all (vs. `locked`, which only labels it and still opens sign-in).
+  disabled?: boolean;
 }) {
   const { t } = useTranslation();
   return (
@@ -259,7 +280,8 @@ function MenuRow({
       <button
         type="button"
         onClick={onClick}
-        className="flex min-h-14 w-full items-center gap-3 px-4 py-3 text-left transition-colors hover:bg-muted/60 focus-visible:bg-muted focus-visible:outline-none"
+        disabled={disabled}
+        className="flex min-h-14 w-full items-center gap-3 px-4 py-3 text-left transition-colors hover:bg-muted/60 focus-visible:bg-muted focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:bg-transparent"
       >
         <span className={cn("flex size-10 shrink-0 items-center justify-center rounded-full bg-accent text-primary", accent && "bg-rose-50 text-rose-600")}>
           <Icon className="size-5" aria-hidden />
