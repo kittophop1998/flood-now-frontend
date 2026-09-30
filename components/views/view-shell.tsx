@@ -13,6 +13,7 @@ export function ViewShell({
   subtitle,
   onBack,
   hidden,
+  footer,
   children,
 }: {
   title: string;
@@ -21,6 +22,9 @@ export function ViewShell({
   // Kept mounted but out of view (e.g. while picking a point on the map),
   // so a half-filled form survives the round trip.
   hidden?: boolean;
+  // Pinned below the scroll area, above the bottom navigation (e.g. a
+  // primary action that must stay visible while the form scrolls).
+  footer?: ReactNode;
   children: ReactNode;
 }) {
   const { t } = useTranslation();
@@ -57,6 +61,7 @@ export function ViewShell({
       <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
         <div className="mx-auto flex max-w-2xl flex-col gap-3 px-4 py-4">{children}</div>
       </div>
+      {footer && <div className="shrink-0 border-t bg-background px-4 py-3">{footer}</div>}
     </section>
   );
 }

@@ -928,7 +928,7 @@ export default function HomePage() {
           onBack={back}
           hidden={moreHidden}
           onUseMyLocation={myLocation}
-          onPick={requestPick}
+          userLocation={userLocation}
           onSelectReport={openReport}
           onShowOnMap={showRoute}
         />

@@ -20,6 +20,16 @@ export function formatDistance(meters: number, t: TranslateFn): string {
   return t("kilometersValue", { n: km < 10 ? Number(km.toFixed(1)).toString() : Math.round(km).toString() });
 }
 
+// "18 min", "1 h 5 min": travel time from the routing provider, rounded to a
+// whole minute (never "0 min").
+export function formatDuration(seconds: number, t: TranslateFn): string {
+  const min = Math.max(1, Math.round(seconds / 60));
+  if (min < 60) return t("durationMinutes", { n: min });
+  const h = Math.floor(min / 60);
+  const m = min % 60;
+  return m ? `${t("durationHours", { n: h })} ${t("durationMinutes", { n: m })}` : t("durationHours", { n: h });
+}
+
 // A circle of `radiusM` meters around a point as a GeoJSON ring
 // ([lng, lat] pairs, closed), for drawing announcement areas on the map.
 export function circleRing(center: LatLng, radiusM: number, steps = 48): [number, number][] {

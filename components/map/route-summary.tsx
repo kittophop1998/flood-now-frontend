@@ -4,7 +4,8 @@ import { Navigation, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { RouteRiskBadge } from "@/components/community/badges";
 import { tripDirectionsUrl } from "@/lib/directions";
-import { formatDistance } from "@/lib/distance";
+import { formatDistance, formatDuration } from "@/lib/distance";
+import { formatClockTime } from "@/lib/freshness";
 import { useTranslation } from "@/lib/i18n/locale-context";
 import { cn } from "@/lib/utils";
 import type { LatLng, RouteEvaluation } from "@/types/community";
@@ -28,7 +29,7 @@ export function RouteSummary({
   onClose: () => void;
   onDetails: () => void;
 }) {
-  const { t } = useTranslation();
+  const { t, locale } = useTranslation();
   const route = result.routes[selected];
   return (
     <section
@@ -45,7 +46,7 @@ export function RouteSummary({
         </Button>
       </div>
       <p className="text-sm text-muted-foreground">
-        {formatDistance(route.distance_m, t)} · {route.incident_count === 0 ? t("routeNoReports") : t(route.incident_count === 1 ? "routeIncidentCountOne" : "routeIncidentCount", { n: route.incident_count })}
+        {formatDuration(route.duration_s, t)} · {formatDistance(route.distance_m, t)} · {route.incident_count === 0 ? t("routeNoReports") : t(route.incident_count === 1 ? "routeIncidentCountOne" : "routeIncidentCount", { n: route.incident_count })}
       </p>
       {result.routes.length > 1 && (
         <div role="radiogroup" aria-label={t("routeOptions")} className="flex gap-1.5">
@@ -80,7 +81,9 @@ export function RouteSummary({
           {t("openInMaps")}
         </a>
       </div>
-      <p className="text-[11px] leading-snug text-muted-foreground">{t("routeMapDisclaimer")}</p>
+      <p className="text-[11px] leading-snug text-muted-foreground">
+        {t("routeDataAsOf", { time: formatClockTime(result.evaluated_at, locale) })} · {t("routeMapDisclaimer")}
+      </p>
     </section>
   );
 }
