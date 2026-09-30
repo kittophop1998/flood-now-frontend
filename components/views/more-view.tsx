@@ -49,13 +49,34 @@ export type MoreScreen =
   | "services"
   | "provider";
 
-const MENU: { id: Exclude<MoreScreen, "menu" | "sos" | "donate" | "sync" | "services" | "provider">; icon: LucideIcon; label: TranslationKey; hint: TranslationKey }[] = [
-  { id: "saved", icon: Bookmark, label: "savedPlacesTitle", hint: "savedPlacesHint" },
+type MenuCtx = { localServices: boolean; hasProvider: boolean };
+
+// Add `requiresAuth: true` to lock an entry for guests; `disabled: true` switches it off
+// for everyone (shown locked); `when` hides it unless the condition holds.
+const MENU: {
+  id: Exclude<MoreScreen, "menu" | "sos" | "donate" | "sync" | "services">;
+  icon: LucideIcon;
+  label: TranslationKey;
+  hint: TranslationKey | ((ctx: MenuCtx) => TranslationKey);
+  requiresAuth?: boolean;
+  disabled?: boolean;
+  when?: (ctx: MenuCtx) => boolean;
+}[] = [
+  { id: "saved", icon: Bookmark, label: "savedPlacesTitle", hint: "savedPlacesHint", requiresAuth: true },
   { id: "watch", icon: Radar, label: "watchTitle", hint: "watchHint" },
   { id: "route", icon: Route, label: "routeTitle", hint: "routeHint" },
   { id: "helper", icon: Handshake, label: "helperTitle", hint: "helperHint" },
   { id: "places", icon: Hospital, label: "importantPlacesTitle", hint: "importantPlacesHint" },
   { id: "announcements", icon: Megaphone, label: "announcementsTitle", hint: "announcementsHint" },
+  {
+    id: "provider",
+    icon: Store,
+    label: "providerMenuTitle",
+    hint: (c) => (c.hasProvider ? "providerMenuMode" : "providerMenuRegister"),
+    requiresAuth: true,
+    disabled: true, // temporarily switched off
+    when: (c) => c.localServices,
+  },
 ];
 
 // "More": entry points to the secondary features (progressive disclosure —
@@ -75,9 +96,10 @@ export function MoreView({
   hidden?: boolean;
 }) {
   const { t } = useTranslation();
-  const { user, openSignIn, signOut, requireAuth } = useAuth();
+  const { user, openSignIn, signOut } = useAuth();
   // Only to label the provider entry ("register" vs "provider mode").
   const myProvider = useMyProvider(localServices && user != null);
+  const menuCtx: MenuCtx = { localServices, hasProvider: !!myProvider.provider };
   return (
     <ViewShell title={t("moreTitle")} subtitle={t("appTagline")} hidden={hidden}>
       <section aria-label={t("accountTitle")} className="flex items-center gap-3 rounded-2xl border bg-card p-4 shadow-xs">
@@ -156,34 +178,25 @@ export function MoreView({
 
       <nav aria-label={t("moreTitle")} className="overflow-hidden rounded-2xl border bg-card shadow-xs">
         <ul className="divide-y">
-          {MENU.map((item) => (
-            <MenuRow
-              key={item.id}
-              icon={item.icon}
-              label={t(item.label)}
-              hint={t(item.hint)}
-              // Saved places are signed-in only: guests see it locked and can't open it.
-              locked={item.id === "saved" && !user}
-              disabled={item.id === "saved" && !user}
-              onClick={() => onOpen(item.id)}
-            />
-          ))}
+          {MENU.filter((item) => item.when?.(menuCtx) ?? true).map((item) => {
+            const guestLocked = !!item.requiresAuth && !user;
+            return (
+              <MenuRow
+                key={item.id}
+                icon={item.icon}
+                label={t(item.label)}
+                hint={t(typeof item.hint === "function" ? item.hint(menuCtx) : item.hint)}
+                locked={guestLocked || item.disabled}
+                disabled={guestLocked || item.disabled}
+                onClick={() => onOpen(item.id)}
+              />
+            );
+          })}
           {outboxCount > 0 && (
             <MenuRow icon={CloudUpload} label={t("syncTitle")} hint={t("syncPendingCount", { n: outboxCount })} onClick={() => onOpen("sync")} />
           )}
           {donationAvailable && (
             <MenuRow icon={Heart} label={t("donateTitle")} hint={t("donateHint")} onClick={() => onOpen("donate")} accent />
-          )}
-          {localServices && (
-            <MenuRow
-              icon={Store}
-              label={t("providerMenuTitle")}
-              hint={myProvider.provider ? t("providerMenuMode") : t("providerMenuRegister")}
-              // Temporarily disabled (shown with the lock badge): the provider entry point is switched off for now.
-              locked
-              disabled
-              onClick={() => requireAuth("provider", () => onOpen("provider"))}
-            />
           )}
         </ul>
       </nav>
