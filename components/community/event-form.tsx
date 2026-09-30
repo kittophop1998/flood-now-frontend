@@ -65,8 +65,8 @@ export function draftFrom(ev: CommunityEvent | null, now: Date, location: Locati
 }
 
 // The community event create/edit form: used by the create-report drawer
-// (new events) and the events screen (editing your own). The parent decides
-// what saving does (the API call) and what happens next.
+// (new events) and the edit popup (your own). The parent decides what saving
+// does (the API call) and what happens next.
 export function EventForm({
   initial,
   onSave,
@@ -74,6 +74,8 @@ export function EventForm({
   onUseMyLocation,
   onPickOnMap,
   error,
+  withPhoto = true,
+  className,
 }: {
   initial: EventDraft;
   // Resolves to whether it was saved; the form stays open (input intact) if not.
@@ -83,6 +85,9 @@ export function EventForm({
   // Pick the point on the map; gets the form's current state to restore.
   onPickOnMap: (draft: EventDraft) => void;
   error: string | null;
+  // false: no photo field, and saving leaves the event's photo as it is.
+  withPhoto?: boolean;
+  className?: string;
 }) {
   const { t } = useTranslation();
   const [draft, setDraft] = useState(initial);
@@ -113,8 +118,8 @@ export function EventForm({
       start_at: start!.toISOString(),
       end_at: end!.toISOString(),
     };
-    if (image.state.status === "uploaded") body.image_key = image.state.objectKey;
-    else if (!draft.existingImageKey) body.image_key = "";
+    if (withPhoto && image.state.status === "uploaded") body.image_key = image.state.objectKey;
+    else if (withPhoto && !draft.existingImageKey) body.image_key = "";
 
     setSaving(true);
     const saved = await onSave(draft.id, body);
@@ -124,7 +129,7 @@ export function EventForm({
 
   const existingUrl = draft.existingImageKey && image.state.status === "empty" ? imageKitUrl(draft.existingImageKey) : null;
   return (
-    <section className="flex flex-col gap-4 rounded-2xl border bg-card p-4 shadow-xs">
+    <section className={cn("flex flex-col gap-4 rounded-2xl border bg-card p-4 shadow-xs", className)}>
       <div className="grid gap-1.5">
         <Label htmlFor="event-title">{t("eventTitleLabel")}</Label>
         <Input
@@ -220,22 +225,24 @@ export function EventForm({
         />
       </div>
 
-      <div className="grid gap-1.5">
-        <p className="text-sm font-medium">
-          {t("eventPhoto")} <span className="font-normal text-muted-foreground">({t("optional")})</span>
-        </p>
-        {existingUrl && (
-          <div className="relative">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={existingUrl} alt="" className="max-h-48 w-full rounded-xl object-cover" />
-            <Button type="button" variant="outline" className="absolute top-2 right-2 h-9 rounded-lg bg-background/90" onClick={() => setDraft({ ...draft, existingImageKey: null })}>
-              <Trash2 aria-hidden />
-              {t("eventRemovePhoto")}
-            </Button>
-          </div>
-        )}
-        {!existingUrl && <ImagePicker state={image.state} onSelect={image.select} onRetry={image.retry} onRemove={image.remove} />}
-      </div>
+      {withPhoto && (
+        <div className="grid gap-1.5">
+          <p className="text-sm font-medium">
+            {t("eventPhoto")} <span className="font-normal text-muted-foreground">({t("optional")})</span>
+          </p>
+          {existingUrl && (
+            <div className="relative">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={existingUrl} alt="" className="max-h-48 w-full rounded-xl object-cover" />
+              <Button type="button" variant="outline" className="absolute top-2 right-2 h-9 rounded-lg bg-background/90" onClick={() => setDraft({ ...draft, existingImageKey: null })}>
+                <Trash2 aria-hidden />
+                {t("eventRemovePhoto")}
+              </Button>
+            </div>
+          )}
+          {!existingUrl && <ImagePicker state={image.state} onSelect={image.select} onRetry={image.retry} onRemove={image.remove} />}
+        </div>
+      )}
 
       {error && (
         <p role="alert" className="text-sm text-destructive">

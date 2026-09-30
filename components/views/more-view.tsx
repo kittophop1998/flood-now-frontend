@@ -43,7 +43,6 @@ export type MoreScreen =
   | "helper"
   | "places"
   | "announcements"
-  | "events"
   | "donate"
   | "sync"
   | "services"

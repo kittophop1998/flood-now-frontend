@@ -15,6 +15,7 @@ import { LayersSheet } from "@/components/map/layers-sheet";
 import { LocationPicker } from "@/components/map/location-picker";
 import { RouteSummary } from "@/components/map/route-summary";
 import { SituationIntro, SituationSheet } from "@/components/map/situation-sheet";
+import { EventEditPopup } from "@/components/community/event-edit-popup";
 import { EventForm, draftFrom as eventDraftFrom, type EventDraft } from "@/components/community/event-form";
 import { ReportForm, type ReportDraft } from "@/components/report/report-form";
 import { ReportDetailPopup } from "@/components/report/report-detail";
@@ -32,7 +33,6 @@ import { HelperView } from "@/components/views/helper-view";
 import { ImportantPlacesView } from "@/components/views/important-places-view";
 import { AnnouncementsView } from "@/components/views/announcements-view";
 import { DonateView } from "@/components/views/donate-view";
-import { EventsView } from "@/components/views/events-view";
 import { SyncView } from "@/components/views/sync-view";
 import { ServicesView, type ServiceRequestIntent } from "@/components/views/services-view";
 import { ProviderView } from "@/components/views/provider-view";
@@ -145,7 +145,7 @@ export default function HomePage() {
   const savedPlaces = useSavedPlaces();
   const { user } = useAuth();
   // An event opened for editing from its detail popup (organizer only).
-  const [eventEdit, setEventEdit] = useState<CommunityEvent | null>(null);
+  const [eventEdit, setEventEdit] = useState<EventDraft | null>(null);
   const [tab, setTab] = useState<AppTab>("map");
   const [moreScreen, setMoreScreen] = useState<MoreScreen>("menu");
   const sos = useSos(tab === "more" && (moreScreen === "sos" || moreScreen === "helper"));
@@ -385,6 +385,13 @@ export default function HomePage() {
     return true;
   }
 
+  // Back to the event's popup after its organizer saved or cancelled it.
+  function showEditedEvent(event: CommunityEvent) {
+    setEventEdit(null);
+    layerData.reloadEvents();
+    openLayerItem({ kind: "event", event });
+  }
+
   function cancelReport() {
     setDraft(null);
     setEventDraft(null);
@@ -446,6 +453,7 @@ export default function HomePage() {
 
   function openLayerItem(selection: Exclude<LayerSelection, { kind: "flood" } | null>) {
     closeReport();
+    setEventEdit(null);
     setTab("map");
     setLayerSelection(selection);
     const point =
@@ -789,8 +797,26 @@ export default function HomePage() {
           onClose={() => setLayerSelection(null)}
           onEdit={(ev) => {
             setLayerSelection(null);
-            setEventEdit(ev);
-            openMore("events");
+            setEventEdit(eventDraftFrom(ev, new Date()));
+          }}
+          onVisibleHeightChange={setSheetHeight}
+        />
+      )}
+      {onMap && !picking && eventEdit && (
+        <EventEditPopup
+          key={eventEdit.id}
+          draft={eventEdit}
+          onClose={() => setEventEdit(null)}
+          onSaved={showEditedEvent}
+          onCancelled={showEditedEvent}
+          onDeleted={() => {
+            setEventEdit(null);
+            layerData.reloadEvents();
+          }}
+          onUseMyLocation={myLocation}
+          onPickOnMap={(current) => {
+            setEventEdit(current);
+            requestPick(t("eventPickLocation"), (p) => setEventEdit((d) => d && { ...d, location: p }));
           }}
           onVisibleHeightChange={setSheetHeight}
         />
@@ -1018,26 +1044,6 @@ export default function HomePage() {
           onOpen={(announcement) => openLayerItem({ kind: "announcement", announcement })}
           onBack={back}
           hidden={moreHidden}
-        />
-      )}
-      {tab === "more" && screen === "events" && (
-        <EventsView
-          key={eventEdit?.id ?? "events"}
-          bbox={viewport?.bbox ?? null}
-          initialEdit={eventEdit}
-          onBack={() => {
-            setEventEdit(null);
-            back();
-          }}
-          hidden={moreHidden}
-          onOpen={(event) => {
-            setEventEdit(null);
-            setLayers((l) => ({ ...l, events: true }));
-            openLayerItem({ kind: "event", event });
-          }}
-          onUseMyLocation={myLocation}
-          onPick={requestPick}
-          onChanged={layerData.reloadEvents}
         />
       )}
       {tab === "more" && screen === "donate" && config.donation && <DonateView config={config.donation} onBack={back} hidden={moreHidden} />}

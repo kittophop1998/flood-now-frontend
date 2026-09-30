@@ -423,7 +423,7 @@ export function EventPopup({
 }: {
   event: CommunityEvent;
   onClose: () => void;
-  // Organizer only: open the event in the events screen for editing.
+  // Organizer only: open the event's edit popup.
   onEdit?: (event: CommunityEvent) => void;
   onVisibleHeightChange?: (px: number) => void;
 }) {
