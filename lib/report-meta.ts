@@ -1,6 +1,7 @@
 import {
   Ban,
   Bike,
+  CalendarDays,
   Car,
   CarFront,
   CircleCheck,
@@ -25,6 +26,8 @@ import {
   ZapOff,
   type LucideIcon,
 } from "lucide-react";
+import { EVENT_COLOR } from "@/lib/community-meta";
+import type { AuthReason } from "@/lib/auth-gate";
 import type { TranslateFn, TranslationKey } from "@/lib/i18n/locale";
 import type {
   PassLevel,
@@ -37,7 +40,7 @@ import type {
   Vehicle,
   WaterDepth,
 } from "@/types/report";
-import { VEHICLES } from "@/types/report";
+import { CREATABLE_REPORT_TYPES, VEHICLES, type CreatableReportType } from "@/types/report";
 
 // Which optional field groups a category shows in the form and detail view.
 // Mirrors the server's normalization (apps/api/internal/domain/report):
@@ -81,6 +84,40 @@ export const CATEGORY_META: Record<ReportType, CategoryMeta> = {
   aid_point: { icon: HandHeart, color: "#15803d", fields: PLAIN, facility: true },
   other: { icon: MapPin, color: "#64748b", fields: PLAIN },
 };
+
+// What the create-report category grid offers, in order. Most tiles are
+// report categories (the ordinary report form); a "flow" tile starts a
+// different creation form inside the same drawer (community events — public
+// content, not incidents, so never a report type). A tile a guest can't use
+// shows a lock and asks to sign in first (`authReason` is the explanation);
+// the server enforces the same rule (report create / POST /events).
+export type FlowCategory = "community_event";
+export type PickerTile = {
+  icon: LucideIcon;
+  color: string;
+  guestReportable: boolean;
+  authReason: AuthReason;
+  // Occupies a full row of the grid (keeps the report tiles' rows even).
+  fullRow?: boolean;
+} & ({ kind: "report"; type: CreatableReportType } | { kind: "flow"; type: FlowCategory });
+
+export const FLOW_TILES: PickerTile[] = [
+  { kind: "flow", type: "community_event", icon: CalendarDays, color: EVENT_COLOR, guestReportable: false, authReason: "createEvent", fullRow: true },
+];
+
+export const REPORT_PICKER_TILES: readonly PickerTile[] = [
+  ...CREATABLE_REPORT_TYPES.map(
+    (type): PickerTile => ({
+      kind: "report",
+      type,
+      icon: CATEGORY_META[type].icon,
+      color: CATEGORY_META[type].color,
+      guestReportable: CATEGORY_META[type].guestReportable === true,
+      authReason: "reportCategory",
+    }),
+  ),
+  ...FLOW_TILES,
+];
 
 // Category-specific details (docs/api-spec.md "Category details"), in the
 // order the form asks and the detail sheet shows them. Mirrors detailRules in
@@ -144,7 +181,7 @@ export function impactsTravel(type: ReportType): boolean {
   return CATEGORY_META[type].fields.passability || type === "traffic_signal_issue";
 }
 
-export function categoryLabel(t: TranslateFn, type: ReportType): string {
+export function categoryLabel(t: TranslateFn, type: ReportType | FlowCategory): string {
   return t(`category.${type}`);
 }
 

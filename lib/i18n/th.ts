@@ -86,6 +86,7 @@ export const th: Record<TranslationKey, string> = {
   "category.road_damage": "ถนนชำรุด",
   "category.construction": "งานก่อสร้าง",
   "category.traffic_signal_issue": "ไฟจราจรเสีย",
+  "category.community_event": "กิจกรรมชุมชน",
 
   "severity.low": "เล็กน้อย",
   "severity.moderate": "ปานกลาง",

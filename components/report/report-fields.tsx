@@ -2,9 +2,8 @@
 
 import { LockKeyhole } from "lucide-react";
 import { useAuth } from "@/features/auth/auth-provider";
-import { canReport } from "@/lib/auth-gate";
 import {
-  CATEGORY_META,
+  REPORT_PICKER_TILES,
   SEVERITY_META,
   WATER_DEPTH_META,
   categoryLabel,
@@ -14,12 +13,12 @@ import {
   severityLabel,
   toneClass,
   waterDepthLabel,
+  type FlowCategory,
 } from "@/lib/report-meta";
 import { DepthGauge } from "@/components/report/report-badges";
 import { useTranslation } from "@/lib/i18n/locale-context";
 import { cn } from "@/lib/utils";
 import {
-  CREATABLE_REPORT_TYPES,
   SEVERITIES,
   WATER_DEPTHS,
   type CreatableReportType,
@@ -34,45 +33,50 @@ const optionFocus = "focus-visible:outline-2 focus-visible:outline-offset-2 focu
 export function CategoryPicker({
   value,
   onChange,
+  onFlow,
   labelledBy,
   invalid,
 }: {
   value: CreatableReportType | undefined;
   onChange: (type: CreatableReportType) => void;
+  // A "flow" tile (community event) opens its own creation form instead of
+  // selecting a report category.
+  onFlow: (flow: FlowCategory) => void;
   labelledBy: string;
   invalid?: boolean;
 }) {
   const { t } = useTranslation();
   const { user, requireAuth } = useAuth();
-  // Ten year-round categories, all equal (no category is the default):
-  // two columns of icon + label on phones, 5 × 2 tiles on wider screens —
-  // always full rows. A guest can report the safety-critical ones; the rest
-  // show a lock and ask to sign in first (then get selected).
+  // Year-round categories, all equal (no category is the default): two
+  // columns of icon + label on phones, 5 per row on wider screens. A guest can
+  // use the safety-critical ones; the rest show a lock and ask to sign in
+  // first (then get selected). Tiles come from REPORT_PICKER_TILES.
   return (
     <div role="radiogroup" aria-labelledby={labelledBy} aria-invalid={invalid} className="grid grid-cols-2 gap-2 sm:grid-cols-5">
-      {CREATABLE_REPORT_TYPES.map((type) => {
-        const meta = CATEGORY_META[type];
-        const Icon = meta.icon;
-        const selected = value === type;
-        const locked = !canReport(type, user != null);
+      {REPORT_PICKER_TILES.map((tile) => {
+        const Icon = tile.icon;
+        const selected = tile.kind === "report" && value === tile.type;
+        const locked = user == null && !tile.guestReportable;
+        const select = () => (tile.kind === "flow" ? onFlow(tile.type) : onChange(tile.type));
         return (
           <button
-            key={type}
+            key={tile.type}
             type="button"
             role="radio"
             aria-checked={selected}
-            aria-label={locked ? `${categoryLabel(t, type)} (${t("categoryNeedsSignIn")})` : undefined}
-            onClick={() => (locked ? requireAuth("reportCategory", () => onChange(type)) : onChange(type))}
+            aria-label={locked ? `${categoryLabel(t, tile.type)} (${t("categoryNeedsSignIn")})` : undefined}
+            onClick={() => (locked ? requireAuth(tile.authReason, select) : select())}
             className={cn(
               "relative flex min-h-12 items-center gap-2.5 rounded-xl border px-2.5 py-2 text-left text-sm leading-tight font-medium transition-colors sm:min-h-[76px] sm:flex-col sm:justify-center sm:gap-1.5 sm:px-1 sm:text-center sm:text-xs",
+              tile.fullRow && "col-span-full sm:min-h-12 sm:flex-row sm:gap-2.5 sm:text-sm",
               optionFocus,
               selected ? "border-primary bg-accent text-foreground ring-2 ring-primary/30" : "bg-background hover:bg-muted",
             )}
           >
-            <span className="flex size-8 shrink-0 items-center justify-center rounded-full text-white" style={{ backgroundColor: meta.color }}>
+            <span className="flex size-8 shrink-0 items-center justify-center rounded-full text-white" style={{ backgroundColor: tile.color }}>
               <Icon className="size-4" aria-hidden />
             </span>
-            <span className="min-w-0 flex-1 sm:flex-none">{categoryLabel(t, type)}</span>
+            <span className="min-w-0 flex-1 sm:flex-none">{categoryLabel(t, tile.type)}</span>
             {locked && <LockKeyhole className="absolute top-1.5 right-1.5 size-3 text-muted-foreground" aria-hidden />}
           </button>
         );

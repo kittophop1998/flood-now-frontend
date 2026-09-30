@@ -17,7 +17,7 @@ import { useImageUpload } from "@/features/reports/use-image-upload";
 import { useApproximateAddress, useDuplicateReports } from "@/features/reports/use-location-lookups";
 import { useNow } from "@/features/common/use-now";
 import { createReportFormSchema, type ReportFormValues } from "@/lib/report-schema";
-import { CATEGORY_META, detailFields, hasKnownPassability, knownDetails, suggestPassability } from "@/lib/report-meta";
+import { CATEGORY_META, type FlowCategory, detailFields, hasKnownPassability, knownDetails, suggestPassability } from "@/lib/report-meta";
 import { UNKNOWN_PASSABILITY } from "@/lib/condition-update";
 import { useTranslation } from "@/lib/i18n/locale-context";
 import { cn } from "@/lib/utils";
@@ -44,6 +44,7 @@ export function ReportForm({
   submitError,
   onConfirmExisting,
   onViewExisting,
+  onFlow,
   onRequestSos,
 }: {
   location: LatLng;
@@ -54,6 +55,9 @@ export function ReportForm({
   submitError: string | null;
   onConfirmExisting: (report: Report) => Promise<void>;
   onViewExisting: (report: Report) => void;
+  // A non-report tile (community event) was picked: leave the report form for
+  // that flow, keeping what's typed so far.
+  onFlow: (flow: FlowCategory, draft: ReportDraft) => void;
   // Reports describe the situation for others; a person who needs help now
   // is pointed at the separate SOS flow.
   onRequestSos: () => void;
@@ -156,7 +160,7 @@ export function ReportForm({
             control={control}
             name="type"
             render={({ field }) => (
-              <CategoryPicker value={field.value} onChange={field.onChange} labelledBy="field-type" invalid={!!errors.type} />
+              <CategoryPicker value={field.value} onChange={field.onChange} onFlow={(flow) => onFlow(flow, currentDraft())} labelledBy="field-type" invalid={!!errors.type} />
             )}
           />
           <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 rounded-xl bg-red-50 py-1 pr-1 pl-3">

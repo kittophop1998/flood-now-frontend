@@ -88,6 +88,7 @@ export const en = {
   "category.road_damage": "Road damage",
   "category.construction": "Roadworks",
   "category.traffic_signal_issue": "Traffic signal out",
+  "category.community_event": "Community event",
 
   // Severity
   "severity.low": "Minor",

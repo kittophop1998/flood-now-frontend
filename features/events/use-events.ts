@@ -83,3 +83,23 @@ export function useEvents(bbox: BoundingBox | null) {
 }
 
 export type EventsApi = ReturnType<typeof useEvents>;
+
+// Posting a new event from the create-report drawer (the API requires a
+// signed-in user; a guest never gets here — the category tile is locked).
+export function useCreateEvent() {
+  const { t } = useTranslation();
+  const [error, setError] = useState<string | null>(null);
+  const create = useCallback(
+    async (input: EventInput): Promise<CommunityEvent | null> => {
+      setError(null);
+      try {
+        return await eventsService.create(input);
+      } catch (err) {
+        setError(err instanceof ApiError && err.status !== 0 ? err.message : t("eventSaveFailed"));
+        return null;
+      }
+    },
+    [t],
+  );
+  return { create, error, clearError: () => setError(null) };
+}

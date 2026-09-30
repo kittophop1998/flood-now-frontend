@@ -15,6 +15,7 @@ import { LayersSheet } from "@/components/map/layers-sheet";
 import { LocationPicker } from "@/components/map/location-picker";
 import { RouteSummary } from "@/components/map/route-summary";
 import { SituationIntro, SituationSheet } from "@/components/map/situation-sheet";
+import { EventForm, draftFrom as eventDraftFrom, type EventDraft } from "@/components/community/event-form";
 import { ReportForm, type ReportDraft } from "@/components/report/report-form";
 import { ReportDetailPopup } from "@/components/report/report-detail";
 import { AnnouncementPopup, CctvPopup, EventPopup, GistdaFloodPopup, ImportantPlacePopup } from "@/components/layers/layer-detail";
@@ -51,6 +52,7 @@ import { usePublicConfig } from "@/features/config/use-public-config";
 import { useSavedPlaces } from "@/features/places/use-saved-places";
 import { useRouteEvaluation } from "@/features/route/use-route-evaluation";
 import { useSos } from "@/features/sos/use-sos";
+import { useCreateEvent } from "@/features/events/use-events";
 import { useMyServiceRequests } from "@/features/services/use-customer-services";
 import { recalledTopup } from "@/lib/pending-topup";
 import { DEFAULT_LAYERS, useViewportLayers, type LayerFilters } from "@/features/layers/use-viewport-layers";
@@ -65,7 +67,7 @@ import { DEFAULT_FILTERS, applyClientFilters, type MapFilters } from "@/lib/map-
 import { SITUATION_RADIUS_M, summarizeSituation } from "@/lib/situation";
 import { useTranslation } from "@/lib/i18n/locale-context";
 import type { BoundingBox, CreateReportInput, Place, Report } from "@/types/report";
-import type { Announcement, CctvCamera, CommunityEvent, FloodAreaProperties, ImportantPlace, LatLng, RouteEvaluation, SavedPlace } from "@/types/community";
+import type { Announcement, CctvCamera, CommunityEvent, EventInput, FloodAreaProperties, ImportantPlace, LatLng, RouteEvaluation, SavedPlace } from "@/types/community";
 
 const MapView = dynamic(() => import("@/components/map/map-view").then((m) => m.MapView), {
   ssr: false,
@@ -155,6 +157,9 @@ export default function HomePage() {
 
   const [mode, setMode] = useState<Mode>({ kind: "browse" });
   const [draft, setDraft] = useState<ReportDraft | null>(null);
+  // Set while the create-report drawer shows the community event form.
+  const [eventDraft, setEventDraft] = useState<EventDraft | null>(null);
+  const newEvent = useCreateEvent();
   const [selected, setSelected] = useState<Report | null>(null);
   const [layerSelection, setLayerSelection] = useState<LayerSelection>(null);
   const [focus, setFocus] = useState<MapFocus | null>(null);
@@ -338,6 +343,7 @@ export default function HomePage() {
     setLayerSelection(null);
     setTab("map");
     setDraft(null);
+    setEventDraft(null);
     createClientId.current = newClientId();
     setMode({ kind: "picking" });
     if (userLocation) setFocus({ ...userLocation, zoom: 17 });
@@ -361,8 +367,27 @@ export default function HomePage() {
     setMode({ kind: "picking" });
   }
 
+  // Choosing the event's point on the map keeps the form's input, like editLocation.
+  function editEventLocation(current: EventDraft) {
+    if (mode.kind !== "creating") return;
+    setEventDraft(current);
+    setFocus({ ...mode.location, zoom: 17 });
+    setMode({ kind: "picking" });
+  }
+
+  async function handleCreateEvent(_id: string | null, body: EventInput) {
+    const created = await newEvent.create(body);
+    if (!created) return false;
+    cancelReport();
+    setLayers((l) => ({ ...l, events: true }));
+    layerData.reloadEvents();
+    openLayerItem({ kind: "event", event: created });
+    return true;
+  }
+
   function cancelReport() {
     setDraft(null);
+    setEventDraft(null);
     setMode({ kind: "browse" });
   }
 
@@ -858,6 +883,7 @@ export default function HomePage() {
               mode.onPick(mapCenter);
               setMode({ kind: "browse" });
             } else {
+              if (eventDraft) setEventDraft({ ...eventDraft, location: { ...mapCenter } });
               setMode({ kind: "creating", location: mapCenter });
             }
           }}
@@ -1050,23 +1076,42 @@ export default function HomePage() {
                   {t("reportOfflineNote")}
                 </p>
               )}
-              <ReportForm
-                location={mode.location}
-                draft={draft}
-                onChangeLocation={editLocation}
-                onSubmit={handleCreate}
-                submitting={submitting}
-                submitError={createError}
-                onConfirmExisting={confirmExisting}
-                onViewExisting={(r) => {
-                  setDraft(null);
-                  openReport(r);
-                }}
-                onRequestSos={() => {
-                  cancelReport();
-                  openMore("sos");
-                }}
-              />
+              {eventDraft ? (
+                <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain bg-muted/60 px-4 py-4">
+                  <EventForm
+                    key={`${eventDraft.location?.latitude}:${eventDraft.location?.longitude}`}
+                    initial={eventDraft}
+                    onSave={handleCreateEvent}
+                    onCancel={() => setEventDraft(null)}
+                    onUseMyLocation={myLocation}
+                    onPickOnMap={editEventLocation}
+                    error={newEvent.error}
+                  />
+                </div>
+              ) : (
+                <ReportForm
+                  location={mode.location}
+                  draft={draft}
+                  onChangeLocation={editLocation}
+                  onSubmit={handleCreate}
+                  submitting={submitting}
+                  submitError={createError}
+                  onConfirmExisting={confirmExisting}
+                  onViewExisting={(r) => {
+                    setDraft(null);
+                    openReport(r);
+                  }}
+                  onRequestSos={() => {
+                    cancelReport();
+                    openMore("sos");
+                  }}
+                  onFlow={(_flow, current) => {
+                    setDraft(current);
+                    newEvent.clearError();
+                    setEventDraft(eventDraftFrom(null, new Date(), { ...mode.location }));
+                  }}
+                />
+              )}
             </>
           )}
         </DrawerContent>

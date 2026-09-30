@@ -2,6 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { canReport, isGuestReportable } from "@/lib/auth-gate";
 import { eventStatus, eventWindowError, isHappeningNow, visibleEvents } from "@/lib/events";
+import { REPORT_PICKER_TILES } from "@/lib/report-meta";
 import { CREATABLE_REPORT_TYPES, REPORT_TYPES } from "@/types/report";
 import type { CommunityEvent } from "@/types/community";
 
@@ -23,6 +24,20 @@ test("a guest can pick only safety-critical categories; a signed-in user any cre
   assert.equal(canReport("shelter", false), false);
   assert.equal(canReport("aid_point", false), false);
   for (const t of CREATABLE_REPORT_TYPES) assert.equal(canReport(t, true), true);
+});
+
+test("create-report grid: every creatable category plus a login-required community event flow", () => {
+  const report = REPORT_PICKER_TILES.filter((t) => t.kind === "report").map((t) => t.type);
+  assert.deepEqual(report, [...CREATABLE_REPORT_TYPES]);
+  const event = REPORT_PICKER_TILES.find((t) => t.type === "community_event");
+  assert.ok(event, "community_event tile exists");
+  assert.equal(event.kind, "flow");
+  assert.equal(event.guestReportable, false); // locked for guests (API: POST /events needs a session)
+  assert.equal(event.authReason, "createEvent");
+  // Report tiles stay locked exactly for the categories the API keeps signed-in only.
+  for (const t of REPORT_PICKER_TILES.filter((x) => x.kind === "report")) assert.equal(t.guestReportable, isGuestReportable(t.type as never));
+  // Community events are not a report type (the API rejects it there).
+  assert.equal((REPORT_TYPES as readonly string[]).includes("community_event"), false);
 });
 
 function ev(partial: Partial<CommunityEvent>): CommunityEvent {
