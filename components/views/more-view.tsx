@@ -179,7 +179,8 @@ export function MoreView({
               icon={Store}
               label={t("providerMenuTitle")}
               hint={myProvider.provider ? t("providerMenuMode") : t("providerMenuRegister")}
-              // Temporarily disabled: the provider entry point is switched off for now.
+              // Temporarily disabled (shown with the lock badge): the provider entry point is switched off for now.
+              locked
               disabled
               onClick={() => requireAuth("provider", () => onOpen("provider"))}
             />
