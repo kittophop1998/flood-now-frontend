@@ -74,7 +74,6 @@ const MENU: {
     label: "providerMenuTitle",
     hint: (c) => (c.hasProvider ? "providerMenuMode" : "providerMenuRegister"),
     requiresAuth: true,
-    disabled: true, // temporarily switched off
     when: (c) => c.localServices,
   },
 ];
